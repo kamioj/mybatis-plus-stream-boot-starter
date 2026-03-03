@@ -1301,7 +1301,7 @@ public abstract class AbstractFunctionLambdaQueryWrapper<W extends AbstractWhere
     @SuppressWarnings("unchecked")
     @SafeVarargs
     public final <V extends Comparable<V>> V bXorFunc(Function<Children, V>... func) {
-        return operate("~", (Class<Children>) getClass(), func);
+        return operate("^", (Class<Children>) getClass(), func);
     }
 
     /**

@@ -19,12 +19,12 @@ public abstract class MysqlServiceBaseImpl<M extends MysqlBaseMapper<T>, T> exte
 
     @Override
     public MybatisQueryableStream1<T, T> stream() {
-        return new MybatisQueryableStream1<>(entityClass, baseMapper, entityClass);
+        return new MybatisQueryableStream1<>(getEntityClass(), getBaseMapper(), getEntityClass());
     }
 
     @Override
     public MybatisExecutableStream<T> executableStream() {
-        return new MybatisExecutableStream<>(entityClass, baseMapper);
+        return new MybatisExecutableStream<>(getEntityClass(), getBaseMapper());
     }
 
     @Override
@@ -59,12 +59,12 @@ public abstract class MysqlServiceBaseImpl<M extends MysqlBaseMapper<T>, T> exte
 
     @Override
     public T get(Consumer<NormalWhereLambdaQueryWrapper> predicate) {
-        return get(predicate, null, entityClass);
+        return get(predicate, null, getEntityClass());
     }
 
     @Override
     public T getOrDefault(Consumer<NormalWhereLambdaQueryWrapper> predicate, T defaultValue) {
-        T resultValue = get(predicate, null, entityClass);
+        T resultValue = get(predicate, null, getEntityClass());
         return resultValue == null ? defaultValue : resultValue;
     }
 
@@ -80,10 +80,10 @@ public abstract class MysqlServiceBaseImpl<M extends MysqlBaseMapper<T>, T> exte
 
     @Override
     public T getByKeyForUpdate(Object key) {
-        ColumnInfo keyColumn = MybatisUtil.getTableInfo(entityClass).getKeyColumn();
+        ColumnInfo keyColumn = MybatisUtil.getTableInfo(getEntityClass()).getKeyColumn();
         String keyName = StringPool.BACKTICK + keyColumn.getColumnName() + StringPool.BACKTICK;
         return stream()
-                .map(x -> x.selectAll(entityClass), entityClass)
+                .map(x -> x.selectAll(getEntityClass()), getEntityClass())
                 .filter(x -> x.eqFunc(y -> y.customColumn(keyName), y -> y.value(key)))
                 .forUpdate()
                 .findFirst()
@@ -93,11 +93,11 @@ public abstract class MysqlServiceBaseImpl<M extends MysqlBaseMapper<T>, T> exte
     @Override
     public T getByEntityForUpdate(T entity) {
         try {
-            ColumnInfo keyColumn = MybatisUtil.getTableInfo(entityClass).getKeyColumn();
+            ColumnInfo keyColumn = MybatisUtil.getTableInfo(getEntityClass()).getKeyColumn();
             String keyName = StringPool.BACKTICK + keyColumn.getColumnName() + StringPool.BACKTICK;
             Object keyValue = ReflectUtils.getPropertyValue(entity, keyColumn.getPropertyName());
             stream()
-                    .map(x -> x.selectAll(entityClass), entityClass)
+                    .map(x -> x.selectAll(getEntityClass()), getEntityClass())
                     .filter(x -> x.eqFunc(y -> y.customColumn(keyName), y -> y.value(keyValue)))
                     .limit(1)
                     .forUpdate()
@@ -161,7 +161,7 @@ public abstract class MysqlServiceBaseImpl<M extends MysqlBaseMapper<T>, T> exte
 
     @Override
     public List<T> list(Consumer<NormalWhereLambdaQueryWrapper> predicate) {
-        return list(predicate, null, entityClass);
+        return list(predicate, null, getEntityClass());
     }
 
     @Override
@@ -171,7 +171,7 @@ public abstract class MysqlServiceBaseImpl<M extends MysqlBaseMapper<T>, T> exte
 
     @Override
     public List<T> list(Consumer<NormalWhereLambdaQueryWrapper> predicate, Consumer<OrderLambdaQueryWrapper> order, Integer limit) {
-        return list(predicate, order, limit, null, entityClass);
+        return list(predicate, order, limit, null, getEntityClass());
     }
 
     @Override
@@ -215,7 +215,7 @@ public abstract class MysqlServiceBaseImpl<M extends MysqlBaseMapper<T>, T> exte
 
     @Override
     public List<T> listJoin(Consumer<JoinLambdaQueryWrapper<T>> joinPredicate, Consumer<NormalWhereLambdaQueryWrapper> predicate) {
-        return listJoin(joinPredicate, predicate, null, entityClass);
+        return listJoin(joinPredicate, predicate, null, getEntityClass());
     }
 
     @Override
@@ -225,7 +225,7 @@ public abstract class MysqlServiceBaseImpl<M extends MysqlBaseMapper<T>, T> exte
 
     @Override
     public List<T> listJoin(Consumer<JoinLambdaQueryWrapper<T>> joinPredicate, Consumer<NormalWhereLambdaQueryWrapper> predicate, Consumer<OrderLambdaQueryWrapper> order, Integer limit) {
-        return listJoin(joinPredicate, predicate, order, limit, null, entityClass);
+        return listJoin(joinPredicate, predicate, order, limit, null, getEntityClass());
     }
 
     @Override
@@ -332,7 +332,7 @@ public abstract class MysqlServiceBaseImpl<M extends MysqlBaseMapper<T>, T> exte
 
     @Override
     public IPage<T> page(IPage<T> page, Consumer<NormalWhereLambdaQueryWrapper> predicate) {
-        return page(page, predicate, null, entityClass);
+        return page(page, predicate, null, getEntityClass());
     }
 
     @Override

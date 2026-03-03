@@ -2,7 +2,6 @@ package com.baomidou.mybatisplus.toolkit;
 
 
 import com.baomidou.mybatisplus.extension.Converter;
-import com.sun.istack.internal.NotNull;
 
 import java.beans.Introspector;
 import java.io.File;
@@ -576,7 +575,7 @@ public class ReflectUtils {
     }
 
     @SuppressWarnings("unchecked")
-    public static <T> T newInstanceForClass(@NotNull Class<T> clazz) {
+    public static <T> T newInstanceForClass(Class<T> clazz) {
         // 获取 MyClass 的所有构造函数
         Constructor<?>[] constructors = clazz.getDeclaredConstructors();
         // 遍历所有构造函数，找到第一个有参数的构造函数
