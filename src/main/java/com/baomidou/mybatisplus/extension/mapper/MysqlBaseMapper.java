@@ -35,7 +35,7 @@ public interface MysqlBaseMapper<T> extends BaseMapper<T> {
             "</foreach>\n" +
             "${ew.sqlDuplicateSet}" +
             "</script>")
-    int insertDuplicate(String[] columns, Object[][] values, @Param(Constants.WRAPPER) ExecutableQueryWrapper<?> queryWrapper);
+    int insertDuplicate(@Param("columns") String[] columns, @Param("values") Object[][] values, @Param(Constants.WRAPPER) ExecutableQueryWrapper<?> queryWrapper);
 
     @Insert("<script>" +
             "INSERT IGNORE INTO ${ew.sqlFrom}\n" +
@@ -45,7 +45,7 @@ public interface MysqlBaseMapper<T> extends BaseMapper<T> {
             "\n(<foreach collection='item' item='value' index='' separator=','>#{value}</foreach>)" +
             "</foreach>" +
             "</script>")
-    int insertIgnore(String[] columns, Object[][] values, @Param(Constants.WRAPPER) ExecutableQueryWrapper<?> queryWrapper);
+    int insertIgnore(@Param("columns") String[] columns, @Param("values") Object[][] values, @Param(Constants.WRAPPER) ExecutableQueryWrapper<?> queryWrapper);
 
     @Insert("<script>" +
             "REPLACE INTO ${ew.sqlFrom}\n" +
@@ -55,7 +55,7 @@ public interface MysqlBaseMapper<T> extends BaseMapper<T> {
             "\n(<foreach collection='item' item='value' index='' separator=','>#{value}</foreach>)" +
             "</foreach>" +
             "</script>")
-    int insertReplace(String[] columns, Object[][] values, @Param(Constants.WRAPPER) ExecutableQueryWrapper<?> queryWrapper);
+    int insertReplace(@Param("columns") String[] columns, @Param("values") Object[][] values, @Param(Constants.WRAPPER) ExecutableQueryWrapper<?> queryWrapper);
 
     @Update("<script>" +
             "UPDATE ${ew.sqlFrom}\n" +

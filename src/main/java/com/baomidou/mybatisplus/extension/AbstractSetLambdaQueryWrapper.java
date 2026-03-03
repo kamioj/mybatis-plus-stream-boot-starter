@@ -76,6 +76,9 @@ public abstract class AbstractSetLambdaQueryWrapper<F extends AbstractFunctionLa
      * @return 实例本身
      */
     public <T, V> Children setFunc(Boolean condition, SFunction<T, V> column, Function<F, V> func) {
+        if (condition != null && !condition) {
+            return typedThis;
+        }
         try {
             getQueryWrapper().addSetter(getFullColumnName(column, null) + "=" + getSubSqlSegment(func, fClazz));
         } catch (ReflectiveOperationException ignored) {

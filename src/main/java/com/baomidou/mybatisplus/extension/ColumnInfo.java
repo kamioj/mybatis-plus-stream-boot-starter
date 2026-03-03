@@ -49,7 +49,25 @@ public class ColumnInfo {
     }
 
     public String getColumnName() {
-        return this.tableField != null && !this.tableField.value().isEmpty() ? this.tableField.value().replace(StringPool.BACKTICK, "") : this.field.getName();
+        if (this.tableField != null && !this.tableField.value().isEmpty()) {
+            return this.tableField.value().replace(StringPool.BACKTICK, "");
+        }
+        return camelToUnderline(this.field.getName());
+    }
+
+    private static String camelToUnderline(String name) {
+        if (name == null || name.isEmpty()) return name;
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < name.length(); i++) {
+            char c = name.charAt(i);
+            if (Character.isUpperCase(c)) {
+                if (i > 0) sb.append('_');
+                sb.append(Character.toLowerCase(c));
+            } else {
+                sb.append(c);
+            }
+        }
+        return sb.toString();
     }
 
     public Class<?> getColumnType() {

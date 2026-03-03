@@ -3,8 +3,6 @@ package com.baomidou.mybatisplus.extension;
 
 import com.baomidou.mybatisplus.extension.mapper.MysqlBaseMapper;
 import com.baomidou.mybatisplus.toolkit.MybatisUtil;
-import com.sun.istack.internal.NotNull;
-
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.Optional;
@@ -159,13 +157,11 @@ public abstract class MybatisStream<T, R, Wrapper extends ExQueryWrapper<T>, Chi
         toPeekStream().forEachOrdered(action);
     }
 
-    @NotNull
     public Object[] toArray() {
         return toPeekStream().toArray();
     }
 
     @SuppressWarnings("SuspiciousToArrayCall")
-    @NotNull
     public <A> A[] toArray(IntFunction<A[]> generator) {
         return toPeekStream().toArray(generator);
     }
@@ -174,7 +170,6 @@ public abstract class MybatisStream<T, R, Wrapper extends ExQueryWrapper<T>, Chi
         return toPeekStream().reduce(identity, accumulator);
     }
 
-    @NotNull
     public Optional<R> reduce(BinaryOperator<R> accumulator) {
         return toPeekStream().reduce(accumulator);
     }
@@ -191,12 +186,10 @@ public abstract class MybatisStream<T, R, Wrapper extends ExQueryWrapper<T>, Chi
         return toPeekStream().collect(collector);
     }
 
-    @NotNull
     public Optional<R> min(Comparator<? super R> comparator) {
         return toPeekStream().min(comparator);
     }
 
-    @NotNull
     public Optional<R> max(Comparator<? super R> comparator) {
         return toPeekStream().max(comparator);
     }
@@ -225,12 +218,10 @@ public abstract class MybatisStream<T, R, Wrapper extends ExQueryWrapper<T>, Chi
         return limit(1).toPeekStream().findAny();
     }
 
-    @NotNull
     public Iterator<R> iterator() {
         return toPeekStream().iterator();
     }
 
-    @NotNull
     public Spliterator<R> spliterator() {
         return toPeekStream().spliterator();
     }
@@ -239,22 +230,18 @@ public abstract class MybatisStream<T, R, Wrapper extends ExQueryWrapper<T>, Chi
         return toPeekStream().isParallel();
     }
 
-    @NotNull
     public Stream<R> sequential() {
         return toPeekStream().sequential();
     }
 
-    @NotNull
     public Stream<R> parallel() {
         return toPeekStream().parallel();
     }
 
-    @NotNull
     public Stream<R> unordered() {
         return toPeekStream().unordered();
     }
 
-    @NotNull
     public Stream<R> onClose(Runnable closeHandler) {
         return toPeekStream().onClose(closeHandler);
     }

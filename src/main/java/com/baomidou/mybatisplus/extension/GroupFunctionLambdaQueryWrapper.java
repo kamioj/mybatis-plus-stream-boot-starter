@@ -647,7 +647,7 @@ public final class GroupFunctionLambdaQueryWrapper extends AbstractFunctionLambd
                 orderBySql = " " + orderByLambda.getQueryWrapper().getCustomSqlSegment();
             }
             if (!StringUtils.isEmpty(separator)) {
-                separatorSql = " SEPARATOR " + separator;
+                separatorSql = " SEPARATOR '" + separator.replace("'", "\\'") + "'";
             }
             sqlSegment = "GROUP_CONCAT(" + getSubSqlSegment(func, NormalFunctionLambdaQueryWrapper.class) + orderBySql + separatorSql + ")";
         } catch (ReflectiveOperationException ignored) {
@@ -695,7 +695,7 @@ public final class GroupFunctionLambdaQueryWrapper extends AbstractFunctionLambd
                 orderBySql = " " + orderByLambda.getQueryWrapper().getCustomSqlSegment();
             }
             if (!StringUtils.isEmpty(separator)) {
-                separatorSql = " SEPARATOR " + separator;
+                separatorSql = " SEPARATOR '" + separator.replace("'", "\\'") + "'";
             }
             sqlSegment = "GROUP_CONCAT(DISTINCT " + getSubSqlSegment(func, NormalFunctionLambdaQueryWrapper.class) + orderBySql + separatorSql + ")";
         } catch (ReflectiveOperationException ignored) {

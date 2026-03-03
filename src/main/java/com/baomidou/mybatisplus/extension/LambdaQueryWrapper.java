@@ -50,6 +50,10 @@ public abstract class LambdaQueryWrapper<Children extends LambdaQueryWrapper<Chi
      */
     private String putParam(QueryWrapper<?> sourceQueryWrapper, QueryWrapper<?> targetQueryWrapper, String key) {
         Object val = sourceQueryWrapper.getParamNameValuePairs().get(key);
+        if (!targetQueryWrapper.getParamNameValuePairs().containsKey(key)) {
+            targetQueryWrapper.getParamNameValuePairs().put(key, val);
+            return key;
+        }
         int index = 1;
         String newKey = "CUSTOMER_KEY" + index;
         while (targetQueryWrapper.getParamNameValuePairs().containsKey(newKey) || sourceQueryWrapper.getParamNameValuePairs().containsKey(newKey)) {
@@ -91,7 +95,11 @@ public abstract class LambdaQueryWrapper<Children extends LambdaQueryWrapper<Chi
         String paramKey;
         for (Map.Entry<String, Object> entry : sourceQueryWrapper.getParamNameValuePairs().entrySet()) {
             paramKey = putParam(sourceQueryWrapper, targetQueryWrapper, entry.getKey());
-            customSqlSegment = customSqlSegment.replace(String.format(Constants.WRAPPER_PARAM_MIDDLE, Constants.WRAPPER, entry.getKey()), String.format(Constants.WRAPPER_PARAM_MIDDLE, Constants.WRAPPER, paramKey));
+            if (!paramKey.equals(entry.getKey())) {
+                String oldRef = "#{" + Constants.WRAPPER + Constants.WRAPPER_PARAM_MIDDLE + entry.getKey() + "}";
+                String newRef = "#{" + Constants.WRAPPER + Constants.WRAPPER_PARAM_MIDDLE + paramKey + "}";
+                customSqlSegment = customSqlSegment.replace(oldRef, newRef);
+            }
         }
         return customSqlSegment;
     }
