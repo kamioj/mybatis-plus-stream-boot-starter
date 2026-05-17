@@ -42,14 +42,14 @@ MyBatis-Plus Stream is an enhancement framework built on [MyBatis-Plus](https://
 <dependency>
     <groupId>io.github.kamioj</groupId>
     <artifactId>mybatis-plus-stream-boot-starter</artifactId>
-    <version>1.0.0</version>
+    <version>3.5.9.0</version>
 </dependency>
 ```
 
 ### Gradle
 
 ```groovy
-implementation 'io.github.kamioj:mybatis-plus-stream-boot-starter:1.0.0'
+implementation 'io.github.kamioj:mybatis-plus-stream-boot-starter:3.5.9.0'
 ```
 
 > **Requirements**: JDK 17+, Spring Boot 3.x, MyBatis-Plus 3.5.9 (auto-included)
