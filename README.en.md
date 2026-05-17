@@ -7,7 +7,7 @@
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.kamioj/mybatis-plus-stream-boot-starter)](https://central.sonatype.com/artifact/io.github.kamioj/mybatis-plus-stream-boot-starter)
 [![License](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![JDK](https://img.shields.io/badge/JDK-17+-green.svg)](https://adoptium.net)
-[![MyBatis-Plus](https://img.shields.io/badge/MyBatis--Plus-3.5.9-blue.svg)](https://baomidou.com)
+[![MyBatis-Plus](https://img.shields.io/badge/MyBatis--Plus-3.5.16-blue.svg)](https://baomidou.com)
 
 [Documentation](https://kamioj.github.io/mybatis-plus-stream-docs/) | [Mirror (CN)](https://mybatis-plus-stream-docs.545329844.workers.dev/) | [Quick Start](#quick-start) | [Features](#features) | [Examples](#usage-examples)
 
@@ -42,17 +42,17 @@ MyBatis-Plus Stream is an enhancement framework built on [MyBatis-Plus](https://
 <dependency>
     <groupId>io.github.kamioj</groupId>
     <artifactId>mybatis-plus-stream-boot-starter</artifactId>
-    <version>3.5.9.0</version>
+    <version>3.5.16.0</version>
 </dependency>
 ```
 
 ### Gradle
 
 ```groovy
-implementation 'io.github.kamioj:mybatis-plus-stream-boot-starter:3.5.9.0'
+implementation 'io.github.kamioj:mybatis-plus-stream-boot-starter:3.5.16.0'
 ```
 
-> **Requirements**: JDK 17+, Spring Boot 3.x, MyBatis-Plus 3.5.9 (auto-included)
+> **Requirements**: JDK 17+, Spring Boot 3.x, MyBatis-Plus 3.5.16 (auto-included)
 
 ---
 
