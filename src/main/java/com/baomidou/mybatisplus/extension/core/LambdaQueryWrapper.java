@@ -108,14 +108,14 @@ public abstract class LambdaQueryWrapper<Children extends LambdaQueryWrapper<Chi
         return customSqlSegment;
     }
 
-    protected <S extends AbstractSubLambdaQueryWrapper<?>> String getSubSqlSegment(Consumer<S> predicate, Class<S> clazz) throws InstantiationException, IllegalAccessException {
-        S subLambda = clazz.newInstance();
+    protected <S extends AbstractSubLambdaQueryWrapper<?>> String getSubSqlSegment(Consumer<S> predicate, Class<S> clazz) throws ReflectiveOperationException {
+        S subLambda = clazz.getDeclaredConstructor().newInstance();
         predicate.accept(subLambda);
         return subLambda.getSqlSegment(this.queryWrapper);
     }
 
-    protected <S extends AbstractSubLambdaQueryWrapper<?>> String getSubSqlSegment(Function<S, ?> predicate, Class<S> clazz) throws InstantiationException, IllegalAccessException {
-        S subLambda = clazz.newInstance();
+    protected <S extends AbstractSubLambdaQueryWrapper<?>> String getSubSqlSegment(Function<S, ?> predicate, Class<S> clazz) throws ReflectiveOperationException {
+        S subLambda = clazz.getDeclaredConstructor().newInstance();
         predicate.apply(subLambda);
         return subLambda.getSqlSegment(this.queryWrapper);
     }
@@ -302,7 +302,15 @@ public abstract class LambdaQueryWrapper<Children extends LambdaQueryWrapper<Chi
         if (lambda == null) {
             throw new ReflectiveOperationException();
         }
-        String className = Objects.requireNonNull(StringUtils.regexMatcher("\\(L(.*);\\)", lambda.getInstantiatedMethodType())).replace("/", ".");
+        // instantiatedMethodType 形如 "(LEntity;)Ljava/lang/Object;" —— 我们要提取 "Entity"
+        // 4.0 优化：字符串切片代替正则编译，避免每次 SFunction 解析触发正则引擎初始化
+        String methodType = lambda.getInstantiatedMethodType();
+        int start = methodType.indexOf("(L") + 2;
+        int end = methodType.indexOf(";)");
+        if (start < 2 || end < 0 || start >= end) {
+            throw new ReflectiveOperationException("Unable to parse instantiated method type: " + methodType);
+        }
+        String className = methodType.substring(start, end).replace('/', '.');
         Class<T> entityClass = (Class<T>) Class.forName(className);
         return getTable(entityClass);
     }

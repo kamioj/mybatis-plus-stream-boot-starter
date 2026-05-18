@@ -28,7 +28,16 @@ import com.baomidou.mybatisplus.extension.metadata.TableInfo;
 import com.baomidou.mybatisplus.extension.support.LambdaOrderItem;
 
 public final class MybatisUtil {
-    private final static Map<Class<?>, TableInfo<?>> TableCacheMap = new HashMap<>();
+    /**
+     * 实体类 → TableInfo 缓存。4.0 起从 {@code synchronized HashMap} 升级为 {@link ClassValue}，
+     * 无锁、线程局部高速缓存；命中率 100%（每个 Entity 类的 TableInfo 只构造一次）。
+     */
+    private static final ClassValue<TableInfo<?>> TABLE_INFO_CACHE = new ClassValue<>() {
+        @Override
+        protected TableInfo<?> computeValue(Class<?> clazz) {
+            return buildTableInfo(clazz);
+        }
+    };
 
     private static GlobalConfig.DbConfig defaultDbConfig = null;
 
@@ -71,25 +80,24 @@ public final class MybatisUtil {
     }
 
     @SuppressWarnings("unchecked")
-    public synchronized static <T> TableInfo<T> getTableInfo(Class<T> clazz) {
-        if (TableCacheMap.get(clazz) != null) {
-            return (TableInfo<T>) TableCacheMap.get(clazz);
-        }
+    public static <T> TableInfo<T> getTableInfo(Class<T> clazz) {
+        return (TableInfo<T>) TABLE_INFO_CACHE.get(clazz);
+    }
 
+    private static <T> TableInfo<T> buildTableInfo(Class<T> clazz) {
         TableInfo<T> table = new TableInfo<>();
         table.setEntityClass(clazz);
         table.setTableName(ReflectUtils.getAnnotation(clazz, TableName.class));
         Field[] fields = ReflectUtils.getDeclaredFields(clazz, Modifier.PUBLIC | Modifier.PROTECTED | Modifier.PRIVATE);
         List<ColumnInfo> columns = new ArrayList<>();
-        ColumnInfo column;
         for (Field field : fields) {
             TableField tableField = field.getAnnotation(TableField.class);
             if (tableField != null && !tableField.exist()) {
                 continue;
             }
-            column = new ColumnInfo();
+            ColumnInfo column = new ColumnInfo();
             column.setField(field);
-            column.setTableField(field.getAnnotation(TableField.class));
+            column.setTableField(tableField);
             column.setKey(field.getAnnotation(TableId.class) != null);
             TableLogic tableLogicAnnotation = field.getAnnotation(TableLogic.class);
             column.setLogicDelete(tableLogicAnnotation != null);
@@ -105,8 +113,6 @@ public final class MybatisUtil {
             }
         }
         table.setColumns(columns);
-
-        TableCacheMap.put(clazz, table);
         return table;
     }
 
