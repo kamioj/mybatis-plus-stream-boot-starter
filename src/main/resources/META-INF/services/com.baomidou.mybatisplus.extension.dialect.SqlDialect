@@ -1,0 +1,3 @@
+com.baomidou.mybatisplus.extension.dialect.impl.MySqlDialect
+com.baomidou.mybatisplus.extension.dialect.impl.PostgreSqlDialect
+com.baomidou.mybatisplus.extension.dialect.impl.DamengDialect
