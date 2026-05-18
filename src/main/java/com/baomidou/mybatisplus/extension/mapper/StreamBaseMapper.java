@@ -26,34 +26,42 @@ public interface StreamBaseMapper<T> extends BaseMapper<T> {
             "${ew.customSqlSegment}")
     IPage<Map<String, Object>> page(IPage<Map<String, Object>> page, @Param(Constants.WRAPPER) ExQueryWrapper<?> queryWrapper);
 
+    /**
+     * 4.0.2 起：三种批量写入（saveDuplicate / saveIgnore / saveReplace）共用同一 SQL 模板，
+     * 由当前 {@code SqlDialect} 通过 {@code ${ew.sqlInsertPrefix}}（动词前缀）与
+     * {@code ${ew.sqlConflictClause}}（末尾冲突子句）决定方言行为。
+     * 三个方法名仍保留作为调用入口（向后兼容 + 语义清晰）。
+     */
     @Insert("<script>" +
-            "INSERT INTO ${ew.sqlFrom}\n" +
+            "${ew.sqlInsertPrefix} ${ew.sqlFrom}\n" +
             "<foreach collection='columns' item='column' index='' open='(' close=')' separator=','>${column}</foreach>\n" +
             "VALUES" +
             "<foreach collection='values' item='item' index='' separator=','>" +
             "\n(<foreach collection='item' item='value' index='' separator=','>#{value}</foreach>)" +
-            "</foreach>\n" +
-            "${ew.sqlDuplicateSet}" +
+            "</foreach>" +
+            "${ew.sqlConflictClause}" +
             "</script>")
     int insertDuplicate(@Param("columns") String[] columns, @Param("values") Object[][] values, @Param(Constants.WRAPPER) ExecutableQueryWrapper<?> queryWrapper);
 
     @Insert("<script>" +
-            "INSERT IGNORE INTO ${ew.sqlFrom}\n" +
+            "${ew.sqlInsertPrefix} ${ew.sqlFrom}\n" +
             "<foreach collection='columns' item='column' index='' open='(' close=')' separator=','>${column}</foreach>\n" +
             "VALUES" +
             "<foreach collection='values' item='item' index='' separator=','>" +
             "\n(<foreach collection='item' item='value' index='' separator=','>#{value}</foreach>)" +
             "</foreach>" +
+            "${ew.sqlConflictClause}" +
             "</script>")
     int insertIgnore(@Param("columns") String[] columns, @Param("values") Object[][] values, @Param(Constants.WRAPPER) ExecutableQueryWrapper<?> queryWrapper);
 
     @Insert("<script>" +
-            "REPLACE INTO ${ew.sqlFrom}\n" +
+            "${ew.sqlInsertPrefix} ${ew.sqlFrom}\n" +
             "<foreach collection='columns' item='column' index='' open='(' close=')' separator=','>${column}</foreach>\n" +
             "VALUES" +
             "<foreach collection='values' item='item' index='' separator=','>" +
             "\n(<foreach collection='item' item='value' index='' separator=','>#{value}</foreach>)" +
             "</foreach>" +
+            "${ew.sqlConflictClause}" +
             "</script>")
     int insertReplace(@Param("columns") String[] columns, @Param("values") Object[][] values, @Param(Constants.WRAPPER) ExecutableQueryWrapper<?> queryWrapper);
 

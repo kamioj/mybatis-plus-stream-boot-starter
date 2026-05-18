@@ -3,7 +3,11 @@ package com.baomidou.mybatisplus.extension.dialect.impl;
 import com.baomidou.mybatisplus.extension.dialect.DbType;
 import com.baomidou.mybatisplus.extension.dialect.LockMode;
 import com.baomidou.mybatisplus.extension.dialect.SqlDialect;
+import com.baomidou.mybatisplus.extension.dialect.WriteMode;
+import com.baomidou.mybatisplus.extension.metadata.ColumnInfo;
 import com.baomidou.mybatisplus.extension.metadata.SqlDataType;
+
+import java.util.List;
 
 /**
  * MySQL / MariaDB 方言。<b>4.0 默认实现</b>。
@@ -73,6 +77,25 @@ public class MySqlDialect implements SqlDialect {
     public String quoteIdentifier(String name) {
         // MySQL 用反引号
         return "`" + name.replace("`", "``") + "`";
+    }
+
+    @Override
+    public String insertPrefix(WriteMode mode) {
+        return switch (mode) {
+            case INSERT, DUPLICATE -> "INSERT INTO";
+            case IGNORE            -> "INSERT IGNORE INTO";
+            case REPLACE           -> "REPLACE INTO";
+        };
+    }
+
+    @Override
+    public String conflictClause(WriteMode mode, List<String> setters, ColumnInfo pkColumn, String[] allColumns) {
+        if (mode == WriteMode.DUPLICATE) {
+            if (setters == null || setters.isEmpty()) return "";
+            return "\nON DUPLICATE KEY UPDATE\n" + String.join(",\n", setters);
+        }
+        // IGNORE / REPLACE 的语义已在 insertPrefix 表达；末尾不需要子句
+        return "";
     }
 
     private static String escapeStringLiteral(String s) {

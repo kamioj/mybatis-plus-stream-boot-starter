@@ -1,6 +1,9 @@
 package com.baomidou.mybatisplus.extension.dialect;
 
+import com.baomidou.mybatisplus.extension.metadata.ColumnInfo;
 import com.baomidou.mybatisplus.extension.metadata.SqlDataType;
+
+import java.util.List;
 
 /**
  * 数据库方言 SPI。<b>给用户扩展的最小稳定接口</b>。
@@ -97,28 +100,27 @@ public interface SqlDialect {
      */
     String quoteIdentifier(String name);
 
-    /* ============== UPSERT（4.0 仅声明，MySQL 实现；4.0.1 起 PG/DM 完整实现）============== */
+    /* ============== 批量写入路径（4.0.2 起方言接管）============== */
 
     /**
-     * 是否原生支持类似 MySQL 的 {@code ON DUPLICATE KEY UPDATE}。
-     * <p>未支持时 {@link com.baomidou.mybatisplus.extension.service.IStreamService#saveDuplicate} 应
-     * fail-fast 抛 {@link UnsupportedOperationException}（或由 dialect 通过 MERGE / ON CONFLICT 替换实现）。
+     * 返回 INSERT 语句的<b>动词前缀</b>。
+     * <ul>
+     *   <li>MySQL INSERT/DUPLICATE: {@code "INSERT INTO"}；IGNORE: {@code "INSERT IGNORE INTO"}；REPLACE: {@code "REPLACE INTO"}</li>
+     *   <li>PG 三种 mode 都是: {@code "INSERT INTO"}（用末尾子句区分语义）</li>
+     *   <li>DM 用 MERGE INTO 完全不同结构，4.0.2 在 DUPLICATE/IGNORE/REPLACE 三种 mode 下都
+     *       throw {@link UnsupportedOperationException}（4.0.3 起完整实现）</li>
+     * </ul>
      */
-    default boolean supportsUpsert() {
-        return true;
-    }
+    String insertPrefix(WriteMode mode);
 
     /**
-     * 是否原生支持 {@code INSERT IGNORE} 语义。
+     * 返回 INSERT 语句末尾的<b>冲突处理子句</b>（含前导空格/换行；INSERT 模式返回空串）。
+     *
+     * @param mode      写入模式
+     * @param setters   用户通过 {@code DuplicateSetLambdaQueryWrapper.set(...)} 收集的赋值表达式
+     *                  （形如 {@code "update_time = #{ew.paramNameValuePairs.X}"}），仅 {@link WriteMode#DUPLICATE} 用到
+     * @param pkColumn  实体主键列（PG ON CONFLICT 子句必需），null 表示未声明 PK
+     * @param allColumns 表的所有列（{@link WriteMode#REPLACE} 全列覆盖语义所需）
      */
-    default boolean supportsInsertIgnore() {
-        return true;
-    }
-
-    /**
-     * 是否原生支持 {@code REPLACE INTO} 语义。
-     */
-    default boolean supportsInsertReplace() {
-        return true;
-    }
+    String conflictClause(WriteMode mode, List<String> setters, ColumnInfo pkColumn, String[] allColumns);
 }

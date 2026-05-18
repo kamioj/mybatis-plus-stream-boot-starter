@@ -2,7 +2,11 @@ package com.baomidou.mybatisplus.extension.dialect.impl;
 
 import com.baomidou.mybatisplus.extension.dialect.DbType;
 import com.baomidou.mybatisplus.extension.dialect.LockMode;
+import com.baomidou.mybatisplus.extension.dialect.WriteMode;
+import com.baomidou.mybatisplus.extension.metadata.ColumnInfo;
 import com.baomidou.mybatisplus.extension.metadata.SqlDataType;
+
+import java.util.List;
 
 /**
  * 达梦数据库方言（验证基线：DM 8 / DmJdbcDriver18 8.1.3.x）。
@@ -91,14 +95,26 @@ public class DamengDialect extends MySqlDialect {
     }
 
     @Override
-    public boolean supportsInsertIgnore() {
-        // DM 无 INSERT IGNORE 原生语法；需用 MERGE INTO 或事先 SELECT 判断
-        return false;
+    public String insertPrefix(WriteMode mode) {
+        if (mode == WriteMode.INSERT) {
+            return "INSERT INTO";
+        }
+        // DM saveDuplicate/saveIgnore/saveReplace 必须用 MERGE INTO 完全不同的语句结构；
+        // 4.0.2 暂时 fail-fast；4.0.3 起通过 @InsertProvider 走 MERGE INTO 完整实现
+        throw new UnsupportedOperationException(
+            "DM dialect 暂不支持 " + mode + " 模式的批量写入（4.0.2）。" +
+            "DM 的 MERGE INTO 语句结构与 INSERT 完全不同，需通过 @InsertProvider 重构，" +
+            "规划在 4.0.3 提供。临时方案：" +
+            "1) 切到 MySQL 兼容模式调用方+设 DbType.MYSQL；" +
+            "2) 或自行执行原生 MERGE INTO SQL。");
     }
 
     @Override
-    public boolean supportsInsertReplace() {
-        // DM 无 REPLACE INTO 原生语法；需用 MERGE INTO 模拟
-        return false;
+    public String conflictClause(WriteMode mode, List<String> setters, ColumnInfo pkColumn, String[] allColumns) {
+        if (mode == WriteMode.INSERT) {
+            return "";
+        }
+        throw new UnsupportedOperationException(
+            "DM dialect 暂不支持 " + mode + " 写入路径（4.0.2）。规划 4.0.3 通过 MERGE INTO 完整实现。");
     }
 }
