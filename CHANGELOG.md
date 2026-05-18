@@ -13,6 +13,20 @@
 
 （暂无）
 
+## [4.0.4.0] - 2026-05-19
+
+### Fixed
+
+- **`GroupFunctionLambdaQueryWrapper.groupConcatFunc / groupConcatDistinctFunc` 改走方言**：
+  - PG / DM：生成 `STRING_AGG(col, ',')`
+  - MySQL：保留 `GROUP_CONCAT(... [ORDER BY] [SEPARATOR ','])` 完整行为
+  - PG/DM 之前调 `func.groupConcat(...)` 会生成 MySQL 语法报错，本版本修复
+
+### Known limitations
+
+- `func.convert(col, dataType)` 仍调底层 `function("CONVERT", ...)` 工具拼字符串，在 PG/DM 上仍会生成 `CONVERT(...)` 语法（PG/DM 应该用 `CAST(... AS type)`）。改造涉及 `function` 工具方法的深度重构，留 4.0.5。
+- 临时绕过：PG/DM 用户避开 `func.convert(...)` API，改用原始 SQL 片段或外层 dialect.cast 包装
+
 ## [4.0.3.0] - 2026-05-19
 
 ### Added
@@ -253,7 +267,8 @@ extension/
 
 ---
 
-[Unreleased]: https://github.com/kamioj/mybatis-plus-stream-boot-starter/compare/v4.0.3.0...HEAD
+[Unreleased]: https://github.com/kamioj/mybatis-plus-stream-boot-starter/compare/v4.0.4.0...HEAD
+[4.0.4.0]: https://github.com/kamioj/mybatis-plus-stream-boot-starter/compare/v4.0.3.0...v4.0.4.0
 [4.0.3.0]: https://github.com/kamioj/mybatis-plus-stream-boot-starter/compare/v4.0.2.0...v4.0.3.0
 [4.0.2.0]: https://github.com/kamioj/mybatis-plus-stream-boot-starter/compare/v4.0.1.0...v4.0.2.0
 [4.0.1.0]: https://github.com/kamioj/mybatis-plus-stream-boot-starter/compare/v4.0.0.0...v4.0.1.0
