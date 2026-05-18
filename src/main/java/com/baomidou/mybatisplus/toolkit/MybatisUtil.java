@@ -84,6 +84,59 @@ public final class MybatisUtil {
         return (TableInfo<T>) TABLE_INFO_CACHE.get(clazz);
     }
 
+    /**
+     * 解析 SFunction 对应的 Java 属性名（如 {@code User::getId} → {@code "id"}）。
+     * <p>4.0 起，本方法是 SQL-aware terminal operations（toMap / toSet / groupingBy / toMapXxx）
+     * 实现 SQL 下推的核心 helper。
+     */
+    public static String propertyOf(com.baomidou.mybatisplus.core.toolkit.support.SFunction<?, ?> col) {
+        java.lang.invoke.SerializedLambda lambda = ReflectUtils.getLambda(col);
+        if (lambda == null) {
+            throw new IllegalStateException("Not a serializable lambda. Use SFunction (e.g. User::getId).");
+        }
+        return ReflectUtils.getMethodPropertyName(lambda.getImplMethodName());
+    }
+
+    /**
+     * 解析 SFunction 对应的数据库列名（含方言引号，如 MySQL 的 {@code `id`}）。
+     * <p>查 {@link TableInfo} 的 {@code @TableField} 映射；若实体未声明则按属性名兜底。
+     */
+    public static String columnOf(com.baomidou.mybatisplus.core.toolkit.support.SFunction<?, ?> col) {
+        java.lang.invoke.SerializedLambda lambda = ReflectUtils.getLambda(col);
+        if (lambda == null) {
+            throw new IllegalStateException("Not a serializable lambda. Use SFunction (e.g. User::getId).");
+        }
+        String property = ReflectUtils.getMethodPropertyName(lambda.getImplMethodName());
+        String implClassName = lambda.getImplClass().replace('/', '.');
+        com.baomidou.mybatisplus.extension.dialect.SqlDialect dialect =
+            com.baomidou.mybatisplus.extension.dialect.DialectRegistry.current();
+        try {
+            Class<?> entityClass = Class.forName(implClassName);
+            TableInfo<?> tableInfo = getTableInfo(entityClass);
+            for (ColumnInfo ci : tableInfo.getColumns()) {
+                if (ci.getPropertyName().equalsIgnoreCase(property)) {
+                    return dialect.quoteIdentifier(ci.getColumnName());
+                }
+            }
+        } catch (ClassNotFoundException ignored) {
+            // fall through to property-name fallback
+        }
+        return dialect.quoteIdentifier(property);
+    }
+
+    /**
+     * 通过属性名读取实体的属性值。供 groupingBy 内存分组使用。
+     */
+    @SuppressWarnings("unchecked")
+    public static <V> V readProperty(Object entity, String propertyName) {
+        try {
+            return (V) ReflectUtils.getPropertyValue(entity, propertyName);
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException("Cannot read property '" + propertyName
+                + "' from " + entity.getClass().getName(), e);
+        }
+    }
+
     private static <T> TableInfo<T> buildTableInfo(Class<T> clazz) {
         TableInfo<T> table = new TableInfo<>();
         table.setEntityClass(clazz);

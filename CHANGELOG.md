@@ -64,6 +64,30 @@ extension/
 - **EXISTS / NOT EXISTS**：`AbstractWhereLambdaQueryWrapper.exists(subSql)` / `.notExists(subSql)` 在 WHERE 上下文显式使用 EXISTS 谓词
 - **行锁细粒度**：`MybatisQueryableStream.forUpdateNoWait()` / `.forUpdateSkipLocked()` / `.forUpdateWait(int seconds)` 对应 SQL `FOR UPDATE NOWAIT | SKIP LOCKED | WAIT n`
 
+#### **SQL-aware Terminal Operations**（基于 `ceremonyproapp` 50+ 真实绕过案例驱动）
+
+在 `MybatisQueryableStream` 基类新增 9 个 terminal 方法，让用户不再需要"`service.list().stream().collect(JDK Collector)`"三段式全量加载：
+
+| 方法 | SQL 行为 |
+|---|---|
+| `toSet(col)` | `SELECT col FROM ...` |
+| `toMap(keyCol, valCol)` | `SELECT keyCol, valCol FROM ...`（key 冲突时后者覆盖前者）|
+| `toMap(k, v, merger)` | 同上 + 自定义合并策略 |
+| `groupingBy(keyCol)` | `SELECT * FROM ...` + 应用层按 keyCol 分组保留完整实体 |
+| `toMapCount(keyCol)` | `SELECT keyCol, COUNT(*) FROM ... GROUP BY keyCol`（**SQL 真下推**）|
+| `toMapSum(keyCol, sumCol)` | `SELECT keyCol, SUM(sumCol) GROUP BY keyCol` |
+| `toMapAvg(keyCol, avgCol)` | `SELECT keyCol, AVG(avgCol) GROUP BY keyCol`（返回 `Map<K, Double>`）|
+| `toMapMax(keyCol, maxCol)` | `SELECT keyCol, MAX(maxCol) GROUP BY keyCol` |
+| `toMapMin(keyCol, minCol)` | `SELECT keyCol, MIN(minCol) GROUP BY keyCol` |
+
+设计原则：
+- 命名与 JDK `Collectors.toMap/toSet/groupingBy` 接近，开发者已会
+- 接 `SFunction<T, ?>` 而非 lambda，列名解析后下推 SQL
+- "SQL 一目了然" 兑现：方法名 → SQL 关键字直接映射
+- **零 breaking**：纯增量；旧 `.list().stream().collect(...)` 路径继续工作
+
+依赖新增的 `MybatisUtil.propertyOf(SFunction)` / `columnOf(SFunction)` / `readProperty(entity, name)` 三个 public helpers（列名带方言引号，由 `DialectRegistry.current().quoteIdentifier(...)` 提供）。
+
 #### 文档
 - 每个子包都有 `package-info.java` 描述职责
 - `MIGRATION-4.0.md`：完整的旧→新路径表 + Bash/PowerShell 一键迁移脚本

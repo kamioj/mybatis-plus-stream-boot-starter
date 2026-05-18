@@ -3,6 +3,7 @@ package com.baomidou.mybatisplus.extension.stream;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.metadata.OrderItem;
 import com.baomidou.mybatisplus.core.toolkit.StringPool;
+import com.baomidou.mybatisplus.core.toolkit.support.SFunction;
 import com.baomidou.mybatisplus.extension.mapper.StreamBaseMapper;
 import com.baomidou.mybatisplus.toolkit.MybatisUtil;
 import com.baomidou.mybatisplus.toolkit.ReflectUtils;
@@ -311,5 +312,176 @@ public abstract class MybatisQueryableStream<T, R, Children extends MybatisQuery
         queryWrapper.setLockWaitSeconds(waitSeconds);
         queryWrapper.last(buildTailClause(queryWrapper.getSkip(), queryWrapper.getLimit(), true));
         return (Children) this;
+    }
+
+    /* ============================================================
+     * 4.0：SQL-aware Terminal Operations
+     * 让用户直接在 starter 上调用 toMap/toSet/groupingBy 等，避免
+     * "service.list().stream().collect(JDK Collector)" 的全量加载模式。
+     * 命名与 JDK Collectors 保持接近，降低学习成本。
+     * ============================================================ */
+
+    /**
+     * 取列值集合（去重）。
+     * <p>SQL: {@code SELECT col FROM ... WHERE ...}（应用层 LinkedHashSet 去重）
+     */
+    public <K> java.util.Set<K> toSet(SFunction<T, K> col) {
+        java.util.List<Map<String, Object>> rows = executeSelectOneColumn(col);
+        java.util.LinkedHashSet<K> result = new java.util.LinkedHashSet<>();
+        for (Map<String, Object> row : rows) {
+            if (row.isEmpty()) continue;
+            @SuppressWarnings("unchecked")
+            K v = (K) row.values().iterator().next();
+            if (v != null) result.add(v);
+        }
+        return result;
+    }
+
+    /**
+     * 取键-值 Map。Key 冲突时<b>后者覆盖前者</b>（与 JDK {@code Collectors.toMap} 默认抛异常不同；
+     * 业务里通常是按 key 索引最新一条，覆盖比抛错更实用）。
+     * <p>SQL: {@code SELECT keyCol, valCol FROM ... WHERE ...}
+     */
+    public <K, V> Map<K, V> toMap(SFunction<T, K> keyCol, SFunction<T, V> valCol) {
+        return toMap(keyCol, valCol, (a, b) -> b);
+    }
+
+    /**
+     * 取键-值 Map，Key 冲突时用 {@code merger} 合并。
+     * <p>SQL 同上；合并完全在应用层进行。
+     */
+    public <K, V> Map<K, V> toMap(SFunction<T, K> keyCol, SFunction<T, V> valCol,
+                                  java.util.function.BinaryOperator<V> merger) {
+        java.util.List<Map<String, Object>> rows = executeSelectTwoColumns(keyCol, valCol);
+        java.util.LinkedHashMap<K, V> result = new java.util.LinkedHashMap<>();
+        for (Map<String, Object> row : rows) {
+            java.util.Iterator<Object> it = row.values().iterator();
+            if (!it.hasNext()) continue;
+            @SuppressWarnings("unchecked")
+            K k = (K) it.next();
+            if (!it.hasNext()) continue;
+            @SuppressWarnings("unchecked")
+            V v = (V) it.next();
+            result.merge(k, v, merger);
+        }
+        return result;
+    }
+
+    /**
+     * 按 keyCol 分组（应用层），<b>保留所有列</b>。SQL 不下推 GROUP BY。
+     * <p>如只需 key + count，用 {@link #toMapCount} 真正下推到 SQL（性能更好）。
+     */
+    public <K> Map<K, java.util.List<T>> groupingBy(SFunction<T, K> keyCol) {
+        // 不改 SELECT，让 wrapper 保留完整投影；让基类的 toStream 走原有 entity mapping
+        // 简化实现：直接调用 toStream() 拿到 R 流，但 R 不一定是 T...
+        // 这里通过一次 baseMapper.list 拿原始 row，再用 keyCol 取属性名分组。
+        String keyColumnName = MybatisUtil.propertyOf(keyCol);
+        // 通过 mapStream 的 entity-style 还原回 T 实例
+        @SuppressWarnings("unchecked")
+        Class<T> tClass = (Class<T>) entityClass;
+        java.util.List<Map<String, Object>> rows = baseMapper.list(queryWrapper);
+        queryWrapper.reset();
+        java.util.LinkedHashMap<K, java.util.List<T>> result = new java.util.LinkedHashMap<>();
+        MybatisUtil.mapStream(rows, tClass).forEach(arr -> {
+            @SuppressWarnings("unchecked")
+            T entity = (T) arr[0];
+            K k = MybatisUtil.readProperty(entity, keyColumnName);
+            result.computeIfAbsent(k, x -> new java.util.ArrayList<>()).add(entity);
+        });
+        return result;
+    }
+
+    /**
+     * 按 keyCol 分组计数。<b>SQL 真下推</b>。
+     * <p>SQL: {@code SELECT keyCol, COUNT(*) FROM ... WHERE ... GROUP BY keyCol}
+     */
+    public <K> Map<K, Long> toMapCount(SFunction<T, K> keyCol) {
+        return executeGroupBy(keyCol, "COUNT(*)", Number.class, o -> ((Number) o).longValue());
+    }
+
+    /**
+     * 按 keyCol 分组求和。<b>SQL 真下推</b>。
+     * <p>SQL: {@code SELECT keyCol, SUM(sumCol) FROM ... WHERE ... GROUP BY keyCol}
+     */
+    @SuppressWarnings("unchecked")
+    public <K, V extends Number> Map<K, V> toMapSum(SFunction<T, K> keyCol, SFunction<T, V> sumCol) {
+        return executeGroupBy(keyCol, "SUM(" + MybatisUtil.columnOf(sumCol) + ")",
+                              Number.class, n -> (V) n);
+    }
+
+    /**
+     * 按 keyCol 分组求均值。<b>SQL 真下推</b>。返回 {@code Double}（SQL AVG 默认浮点）。
+     * <p>SQL: {@code SELECT keyCol, AVG(avgCol) FROM ... WHERE ... GROUP BY keyCol}
+     */
+    public <K> Map<K, Double> toMapAvg(SFunction<T, K> keyCol, SFunction<T, ? extends Number> avgCol) {
+        return executeGroupBy(keyCol, "AVG(" + MybatisUtil.columnOf(avgCol) + ")",
+                              Number.class, o -> ((Number) o).doubleValue());
+    }
+
+    /**
+     * 按 keyCol 分组取最大值。<b>SQL 真下推</b>。
+     * <p>SQL: {@code SELECT keyCol, MAX(maxCol) FROM ... WHERE ... GROUP BY keyCol}
+     */
+    @SuppressWarnings("unchecked")
+    public <K, V extends Comparable<V>> Map<K, V> toMapMax(SFunction<T, K> keyCol, SFunction<T, V> maxCol) {
+        return executeGroupBy(keyCol, "MAX(" + MybatisUtil.columnOf(maxCol) + ")",
+                              Object.class, o -> (V) o);
+    }
+
+    /**
+     * 按 keyCol 分组取最小值。<b>SQL 真下推</b>。
+     * <p>SQL: {@code SELECT keyCol, MIN(minCol) FROM ... WHERE ... GROUP BY keyCol}
+     */
+    @SuppressWarnings("unchecked")
+    public <K, V extends Comparable<V>> Map<K, V> toMapMin(SFunction<T, K> keyCol, SFunction<T, V> minCol) {
+        return executeGroupBy(keyCol, "MIN(" + MybatisUtil.columnOf(minCol) + ")",
+                              Object.class, o -> (V) o);
+    }
+
+    /* ====== 内部 helper：复用 wrapper + baseMapper 完成 SQL 下推 ====== */
+
+    /** 单列投影：SELECT col FROM ... */
+    private <K> java.util.List<Map<String, Object>> executeSelectOneColumn(SFunction<T, K> col) {
+        String colName = MybatisUtil.columnOf(col);
+        queryWrapper.select(colName + " AS K");
+        java.util.List<Map<String, Object>> rows = baseMapper.list(queryWrapper);
+        queryWrapper.reset();
+        return rows;
+    }
+
+    /** 双列投影：SELECT keyCol, valCol FROM ... */
+    private <K, V> java.util.List<Map<String, Object>> executeSelectTwoColumns(
+            SFunction<T, K> keyCol, SFunction<T, V> valCol) {
+        String k = MybatisUtil.columnOf(keyCol);
+        String v = MybatisUtil.columnOf(valCol);
+        queryWrapper.select(k + " AS K, " + v + " AS V");
+        java.util.List<Map<String, Object>> rows = baseMapper.list(queryWrapper);
+        queryWrapper.reset();
+        return rows;
+    }
+
+    /** GROUP BY 聚合：SELECT keyCol, aggExpr FROM ... GROUP BY keyCol */
+    private <K, V> Map<K, V> executeGroupBy(SFunction<T, K> keyCol, String aggExpr,
+                                            Class<?> rawType, java.util.function.Function<Object, V> caster) {
+        String k = MybatisUtil.columnOf(keyCol);
+        queryWrapper.select(k + " AS K, " + aggExpr + " AS V");
+        queryWrapper.groupBy(k);
+        java.util.List<Map<String, Object>> rows = baseMapper.list(queryWrapper);
+        queryWrapper.reset();
+        java.util.LinkedHashMap<K, V> result = new java.util.LinkedHashMap<>();
+        for (Map<String, Object> row : rows) {
+            java.util.Iterator<Object> it = row.values().iterator();
+            if (!it.hasNext()) continue;
+            @SuppressWarnings("unchecked")
+            K key = (K) it.next();
+            if (!it.hasNext()) continue;
+            Object raw = it.next();
+            if (raw == null) continue;
+            if (!rawType.isInstance(raw)) {
+                throw new IllegalStateException("Unexpected aggregate type: " + raw.getClass());
+            }
+            result.put(key, caster.apply(raw));
+        }
+        return result;
     }
 }
