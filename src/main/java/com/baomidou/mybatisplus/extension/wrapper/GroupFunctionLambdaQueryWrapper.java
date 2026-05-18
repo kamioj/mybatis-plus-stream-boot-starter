@@ -647,10 +647,22 @@ public final class GroupFunctionLambdaQueryWrapper extends AbstractFunctionLambd
                 order.accept(orderByLambda);
                 orderBySql = " " + orderByLambda.getQueryWrapper().getCustomSqlSegment();
             }
-            if (!StringUtils.isEmpty(separator)) {
-                separatorSql = " SEPARATOR '" + separator.replace("'", "\\'") + "'";
+            // 4.0.4: GROUP_CONCAT 走方言。PG/DM 用 STRING_AGG（无 SEPARATOR 关键字，分隔符直接传第二参）；
+            // MySQL 用 GROUP_CONCAT(... SEPARATOR '...')。orderBySql 仅 MySQL 支持，PG/DM 在 STRING_AGG 内的 ORDER BY 语法
+            // 略不同，本版本先省略——若用户需要请直接调 SQL 片段
+            String inner = getSubSqlSegment(func, NormalFunctionLambdaQueryWrapper.class);
+            com.baomidou.mybatisplus.extension.dialect.SqlDialect dialect =
+                com.baomidou.mybatisplus.extension.dialect.DialectRegistry.current();
+            if (dialect.dbType() == com.baomidou.mybatisplus.extension.dialect.DbType.MYSQL && !orderBySql.isEmpty()) {
+                // MySQL 保留 ORDER BY + SEPARATOR 完整形态
+                if (!StringUtils.isEmpty(separator)) {
+                    separatorSql = " SEPARATOR '" + separator.replace("'", "\\'") + "'";
+                }
+                sqlSegment = "GROUP_CONCAT(" + inner + orderBySql + separatorSql + ")";
+            } else {
+                // 走方言（MySQL 也兼容）
+                sqlSegment = dialect.groupConcat(inner, StringUtils.isEmpty(separator) ? null : separator);
             }
-            sqlSegment = "GROUP_CONCAT(" + getSubSqlSegment(func, NormalFunctionLambdaQueryWrapper.class) + orderBySql + separatorSql + ")";
         } catch (ReflectiveOperationException ignored) {
         }
         return null;
@@ -695,10 +707,18 @@ public final class GroupFunctionLambdaQueryWrapper extends AbstractFunctionLambd
                 order.accept(orderByLambda);
                 orderBySql = " " + orderByLambda.getQueryWrapper().getCustomSqlSegment();
             }
-            if (!StringUtils.isEmpty(separator)) {
-                separatorSql = " SEPARATOR '" + separator.replace("'", "\\'") + "'";
+            // 4.0.4: 同 groupConcatFunc，加 DISTINCT
+            String inner = "DISTINCT " + getSubSqlSegment(func, NormalFunctionLambdaQueryWrapper.class);
+            com.baomidou.mybatisplus.extension.dialect.SqlDialect dialect =
+                com.baomidou.mybatisplus.extension.dialect.DialectRegistry.current();
+            if (dialect.dbType() == com.baomidou.mybatisplus.extension.dialect.DbType.MYSQL && !orderBySql.isEmpty()) {
+                if (!StringUtils.isEmpty(separator)) {
+                    separatorSql = " SEPARATOR '" + separator.replace("'", "\\'") + "'";
+                }
+                sqlSegment = "GROUP_CONCAT(" + inner + orderBySql + separatorSql + ")";
+            } else {
+                sqlSegment = dialect.groupConcat(inner, StringUtils.isEmpty(separator) ? null : separator);
             }
-            sqlSegment = "GROUP_CONCAT(DISTINCT " + getSubSqlSegment(func, NormalFunctionLambdaQueryWrapper.class) + orderBySql + separatorSql + ")";
         } catch (ReflectiveOperationException ignored) {
         }
         return null;
