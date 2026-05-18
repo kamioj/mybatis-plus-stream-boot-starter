@@ -10,6 +10,7 @@ import com.baomidou.mybatisplus.core.toolkit.Constants;
 import com.baomidou.mybatisplus.core.toolkit.StringPool;
 import com.baomidou.mybatisplus.core.toolkit.StringUtils;
 import com.baomidou.mybatisplus.toolkit.MybatisUtil;
+import com.baomidou.mybatisplus.extension.dialect.SqlDialect;
 import com.baomidou.mybatisplus.extension.dialect.DialectRegistry;
 import com.baomidou.mybatisplus.extension.metadata.TableInfo;
 
@@ -254,10 +255,13 @@ public class ExQueryWrapper<T> extends QueryWrapper<T> {
         if (!addLogicDeleted) {
             addLogicDeleted = true;
             if (fromTableInfo != null && fromTableInfo.isWithLogicDelete() && !withDeleted) {
-                String deleteColumn = (StringPool.BACKTICK + (fromTable.contains(" AS ") ? fromTable.split(" AS ")[1] : fromTable)
-                        + StringPool.BACKTICK + StringPool.DOT + StringPool.BACKTICK
-                        + fromTableInfo.getLogicDeleteColumn().getColumnName() + StringPool.BACKTICK)
-                        .replace(StringPool.BACKTICK + StringPool.BACKTICK, StringPool.BACKTICK);
+                // 4.0.5: 改走 dialect.quoteIdentifier，让 PG/DM 在逻辑删除路径生成正确引号
+                String alias = fromTable.contains(" AS ") ? fromTable.split(" AS ")[1] : fromTable;
+                // 剥掉 alias 可能携带的反引号/双引号（fromTable 已经被引号包裹）
+                String aliasBare = alias.replaceAll("[`\"]", "");
+                String deleteColumn = DialectRegistry.current().quoteIdentifier(aliasBare)
+                        + StringPool.DOT
+                        + DialectRegistry.current().quoteIdentifier(fromTableInfo.getLogicDeleteColumn().getColumnName());
                 if (expression.getNormal().size() > 0) {
 //                    ArrayList<ISqlSegment> normal = new ArrayList<>(expression.getNormal());
 //                    expression.getNormal().clear();
@@ -316,11 +320,13 @@ public class ExQueryWrapper<T> extends QueryWrapper<T> {
     }
 
     public void setFromTable(TableInfo<T> fromTableInfo, String rename) {
-        String tableName = StringPool.BACKTICK + fromTableInfo.getTableName() + StringPool.BACKTICK;
+        // 4.0.5: 表名 + AS 别名走 dialect.quoteIdentifier
+        SqlDialect d = DialectRegistry.current();
+        String tableName = d.quoteIdentifier(fromTableInfo.getTableName());
         if (!StringUtils.isEmpty(rename)) {
-            tableName += Constants.AS + StringPool.BACKTICK + rename + StringPool.BACKTICK;
+            tableName += Constants.AS + d.quoteIdentifier(rename);
         }
-        this.fromTable = tableName.replace(StringPool.BACKTICK + StringPool.BACKTICK, StringPool.BACKTICK);
+        this.fromTable = tableName;
         this.fromTableInfo = fromTableInfo;
     }
 
