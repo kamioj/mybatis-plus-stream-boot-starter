@@ -1,7 +1,7 @@
 package com.baomidou.mybatisplus.extension.stream;
 
 import com.baomidou.mybatisplus.core.toolkit.support.SFunction;
-import com.baomidou.mybatisplus.extension.mapper.MysqlBaseMapper;
+import com.baomidou.mybatisplus.extension.mapper.StreamBaseMapper;
 import com.baomidou.mybatisplus.toolkit.ReflectUtils;
 import org.apache.ibatis.type.TypeReference;
 
@@ -17,19 +17,19 @@ import com.baomidou.mybatisplus.extension.wrapper.SelectLambdaQueryWrapper;
 
 public class MybatisQueryableStream3<T, R1, R2, R3> extends MybatisQueryableStream<T, MapKey3<R1, R2, R3>, MybatisQueryableStream3<T, R1, R2, R3>> {
 
-    public MybatisQueryableStream3(Class<T> entityClass, MysqlBaseMapper<T> baseMapper, Type... renameClass) {
+    public MybatisQueryableStream3(Class<T> entityClass, StreamBaseMapper<T> baseMapper, Type... renameClass) {
         super(entityClass, baseMapper, renameClass);
     }
 
-    public MybatisQueryableStream3(ExQueryWrapper<T> queryWrapper, Class<T> entityClass, MysqlBaseMapper<T> baseMapper, Type... renameClass) {
+    public MybatisQueryableStream3(ExQueryWrapper<T> queryWrapper, Class<T> entityClass, StreamBaseMapper<T> baseMapper, Type... renameClass) {
         super(queryWrapper, entityClass, baseMapper, renameClass);
     }
 
-    public MybatisQueryableStream3(Class<T> entityClass, MysqlBaseMapper<T> baseMapper, TypeReference<?>... renameType) {
+    public MybatisQueryableStream3(Class<T> entityClass, StreamBaseMapper<T> baseMapper, TypeReference<?>... renameType) {
         super(entityClass, baseMapper, renameType);
     }
 
-    public MybatisQueryableStream3(ExQueryWrapper<T> queryWrapper, Class<T> entityClass, MysqlBaseMapper<T> baseMapper, TypeReference<?>... renameType) {
+    public MybatisQueryableStream3(ExQueryWrapper<T> queryWrapper, Class<T> entityClass, StreamBaseMapper<T> baseMapper, TypeReference<?>... renameType) {
         super(queryWrapper, entityClass, baseMapper, renameType);
     }
 

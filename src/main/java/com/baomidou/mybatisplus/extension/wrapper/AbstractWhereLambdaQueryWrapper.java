@@ -118,7 +118,7 @@ public abstract class AbstractWhereLambdaQueryWrapper<F extends AbstractFunction
             if (condition) {
                 getQueryWrapper().apply(getSubSqlSegment(func1, fClazz) + "=" + getSubSqlSegment(func2, fClazz));
             }
-        } catch (InstantiationException | IllegalAccessException ignored) {
+        } catch (ReflectiveOperationException ignored) {
         }
         return typedThis;
     }
@@ -166,7 +166,7 @@ public abstract class AbstractWhereLambdaQueryWrapper<F extends AbstractFunction
             if (condition) {
                 getQueryWrapper().apply(getSubSqlSegment(func1, fClazz) + "<>" + getSubSqlSegment(func2, fClazz));
             }
-        } catch (InstantiationException | IllegalAccessException ignored) {
+        } catch (ReflectiveOperationException ignored) {
         }
         return typedThis;
     }
@@ -214,7 +214,7 @@ public abstract class AbstractWhereLambdaQueryWrapper<F extends AbstractFunction
             if (condition) {
                 getQueryWrapper().apply(getSubSqlSegment(func1, fClazz) + ">" + getSubSqlSegment(func2, fClazz));
             }
-        } catch (InstantiationException | IllegalAccessException ignored) {
+        } catch (ReflectiveOperationException ignored) {
         }
         return typedThis;
     }
@@ -262,7 +262,7 @@ public abstract class AbstractWhereLambdaQueryWrapper<F extends AbstractFunction
             if (condition) {
                 getQueryWrapper().apply(getSubSqlSegment(func1, fClazz) + ">=" + getSubSqlSegment(func2, fClazz));
             }
-        } catch (InstantiationException | IllegalAccessException ignored) {
+        } catch (ReflectiveOperationException ignored) {
         }
         return typedThis;
     }
@@ -310,7 +310,7 @@ public abstract class AbstractWhereLambdaQueryWrapper<F extends AbstractFunction
             if (condition) {
                 getQueryWrapper().apply(getSubSqlSegment(func1, fClazz) + "<" + getSubSqlSegment(func2, fClazz));
             }
-        } catch (InstantiationException | IllegalAccessException ignored) {
+        } catch (ReflectiveOperationException ignored) {
         }
         return typedThis;
     }
@@ -358,7 +358,7 @@ public abstract class AbstractWhereLambdaQueryWrapper<F extends AbstractFunction
             if (condition) {
                 getQueryWrapper().apply(getSubSqlSegment(func1, fClazz) + "<=" + getSubSqlSegment(func2, fClazz));
             }
-        } catch (InstantiationException | IllegalAccessException ignored) {
+        } catch (ReflectiveOperationException ignored) {
         }
         return typedThis;
     }
@@ -405,7 +405,7 @@ public abstract class AbstractWhereLambdaQueryWrapper<F extends AbstractFunction
             if (condition) {
                 getQueryWrapper().apply(getSubSqlSegment(func1, fClazz) + " LIKE " + getSubSqlSegment(func2, fClazz));
             }
-        } catch (InstantiationException | IllegalAccessException ignored) {
+        } catch (ReflectiveOperationException ignored) {
         }
         return typedThis;
     }
@@ -452,7 +452,7 @@ public abstract class AbstractWhereLambdaQueryWrapper<F extends AbstractFunction
             if (condition) {
                 getQueryWrapper().apply(getSubSqlSegment(func1, fClazz) + " NOT LIKE " + getSubSqlSegment(func2, fClazz));
             }
-        } catch (InstantiationException | IllegalAccessException ignored) {
+        } catch (ReflectiveOperationException ignored) {
         }
         return typedThis;
     }
@@ -499,7 +499,7 @@ public abstract class AbstractWhereLambdaQueryWrapper<F extends AbstractFunction
             if (condition) {
                 getQueryWrapper().apply(getSubSqlSegment(func1, fClazz) + " LIKE CONCAT('%', " + getSubSqlSegment(func2, fClazz) + ", '%')");
             }
-        } catch (InstantiationException | IllegalAccessException ignored) {
+        } catch (ReflectiveOperationException ignored) {
         }
         return typedThis;
     }
@@ -546,7 +546,7 @@ public abstract class AbstractWhereLambdaQueryWrapper<F extends AbstractFunction
             if (condition) {
                 getQueryWrapper().apply(getSubSqlSegment(func1, fClazz) + " LIKE CONCAT('%', " + getSubSqlSegment(func2, fClazz) + ")");
             }
-        } catch (InstantiationException | IllegalAccessException ignored) {
+        } catch (ReflectiveOperationException ignored) {
         }
         return typedThis;
     }
@@ -593,7 +593,7 @@ public abstract class AbstractWhereLambdaQueryWrapper<F extends AbstractFunction
             if (condition) {
                 getQueryWrapper().apply(getSubSqlSegment(func1, fClazz) + " LIKE CONCAT(" + getSubSqlSegment(func2, fClazz) + ", '%')");
             }
-        } catch (InstantiationException | IllegalAccessException ignored) {
+        } catch (ReflectiveOperationException ignored) {
         }
         return typedThis;
     }
@@ -644,7 +644,7 @@ public abstract class AbstractWhereLambdaQueryWrapper<F extends AbstractFunction
             if (condition) {
                 getQueryWrapper().apply(getSubSqlSegment(func1, fClazz) + " BETWEEN " + getSubSqlSegment(func2, fClazz) + " AND " + getSubSqlSegment(func3, fClazz));
             }
-        } catch (InstantiationException | IllegalAccessException ignored) {
+        } catch (ReflectiveOperationException ignored) {
         }
         return typedThis;
     }
@@ -695,7 +695,7 @@ public abstract class AbstractWhereLambdaQueryWrapper<F extends AbstractFunction
             if (condition) {
                 getQueryWrapper().apply(getSubSqlSegment(func1, fClazz) + " NOT BETWEEN " + getSubSqlSegment(func2, fClazz) + " AND " + getSubSqlSegment(func3, fClazz));
             }
-        } catch (InstantiationException | IllegalAccessException ignored) {
+        } catch (ReflectiveOperationException ignored) {
         }
         return typedThis;
     }
@@ -740,7 +740,7 @@ public abstract class AbstractWhereLambdaQueryWrapper<F extends AbstractFunction
             if (condition) {
                 getQueryWrapper().apply(getSubSqlSegment(func, fClazz) + " IS NULL");
             }
-        } catch (InstantiationException | IllegalAccessException ignored) {
+        } catch (ReflectiveOperationException ignored) {
         }
         return typedThis;
     }
@@ -991,7 +991,7 @@ public abstract class AbstractWhereLambdaQueryWrapper<F extends AbstractFunction
             if (condition) {
                 getQueryWrapper().apply(getSubSqlSegment(func1, fClazz) + " NOT IN " + getSubSqlSegment(func2, fClazz));
             }
-        } catch (InstantiationException | IllegalAccessException ignored) {
+        } catch (ReflectiveOperationException ignored) {
         }
         return typedThis;
     }
@@ -1012,7 +1012,7 @@ public abstract class AbstractWhereLambdaQueryWrapper<F extends AbstractFunction
                 subSql.accept(subSqlLambda);
                 getQueryWrapper().apply(getSubSqlSegment(func, fClazz) + " NOT IN (" + subSqlLambda.getSqlSegment(getQueryWrapper()) + ")");
             }
-        } catch (InstantiationException | IllegalAccessException ignored) {
+        } catch (ReflectiveOperationException ignored) {
         }
         return typedThis;
     }
@@ -1122,7 +1122,7 @@ public abstract class AbstractWhereLambdaQueryWrapper<F extends AbstractFunction
             if (condition) {
                 getQueryWrapper().apply(getSubSqlSegment(func1, fClazz) + " REGEXP " + getSubSqlSegment(func2, fClazz));
             }
-        } catch (InstantiationException | IllegalAccessException ignored) {
+        } catch (ReflectiveOperationException ignored) {
         }
         return typedThis;
     }
@@ -1219,7 +1219,7 @@ public abstract class AbstractWhereLambdaQueryWrapper<F extends AbstractFunction
                 String subSqlSegment = this.getSubSqlSegment(predicate, (Class<Children>) this.getClass());
                 getQueryWrapper().and(!StringUtils.isEmpty(subSqlSegment), x -> x.apply(subSqlSegment));
             }
-        } catch (InstantiationException | IllegalAccessException ignored) {
+        } catch (ReflectiveOperationException ignored) {
         }
         return typedThis;
     }
@@ -1238,7 +1238,7 @@ public abstract class AbstractWhereLambdaQueryWrapper<F extends AbstractFunction
                 String subSqlSegment = this.getSubSqlSegment(predicate, (Class<Children>) this.getClass());
                 getQueryWrapper().or(!StringUtils.isEmpty(subSqlSegment), x -> x.apply(subSqlSegment));
             }
-        } catch (InstantiationException | IllegalAccessException ignored) {
+        } catch (ReflectiveOperationException ignored) {
         }
         return typedThis;
     }
@@ -1257,7 +1257,7 @@ public abstract class AbstractWhereLambdaQueryWrapper<F extends AbstractFunction
                 String subSqlSegment = this.getSubSqlSegment(predicate, (Class<Children>) this.getClass());
                 getQueryWrapper().not(!StringUtils.isEmpty(subSqlSegment), x -> x.apply(subSqlSegment));
             }
-        } catch (InstantiationException | IllegalAccessException ignored) {
+        } catch (ReflectiveOperationException ignored) {
         }
         return typedThis;
     }
@@ -2445,4 +2445,44 @@ public abstract class AbstractWhereLambdaQueryWrapper<F extends AbstractFunction
         return typedThis;
     }
 
+    /* ============== 4.0：EXISTS / NOT EXISTS ============== */
+
+    /**
+     * {@code EXISTS (subSql)}。直接传子查询 SQL 文本（含 SELECT … FROM …）。
+     *
+     * <p>示例：
+     * <pre>{@code
+     * .filter(w -> w.exists("SELECT 1 FROM orders o WHERE o.user_id = u.id"))
+     * }</pre>
+     *
+     * @param condition 仅 true 时拼接
+     * @param subSql    子查询 SQL 文本
+     * @return 实例本身
+     */
+    public Children exists(boolean condition, String subSql) {
+        if (condition) {
+            getQueryWrapper().exists(subSql);
+        }
+        return typedThis;
+    }
+
+    /** {@code EXISTS (subSql)} —— 无条件版本 */
+    public Children exists(String subSql) {
+        return exists(true, subSql);
+    }
+
+    /**
+     * {@code NOT EXISTS (subSql)}。
+     */
+    public Children notExists(boolean condition, String subSql) {
+        if (condition) {
+            getQueryWrapper().notExists(subSql);
+        }
+        return typedThis;
+    }
+
+    /** {@code NOT EXISTS (subSql)} —— 无条件版本 */
+    public Children notExists(String subSql) {
+        return notExists(true, subSql);
+    }
 }

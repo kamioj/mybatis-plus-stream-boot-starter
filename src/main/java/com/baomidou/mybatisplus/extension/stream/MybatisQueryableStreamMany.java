@@ -2,7 +2,7 @@ package com.baomidou.mybatisplus.extension.stream;
 
 import cn.hutool.core.lang.TypeReference;
 import com.baomidou.mybatisplus.core.toolkit.support.SFunction;
-import com.baomidou.mybatisplus.extension.mapper.MysqlBaseMapper;
+import com.baomidou.mybatisplus.extension.mapper.StreamBaseMapper;
 
 import java.lang.reflect.Type;
 import java.util.Arrays;
@@ -17,22 +17,22 @@ public class MybatisQueryableStreamMany<T> extends MybatisQueryableStream<T, Obj
 
     private final Integer seqNo;
 
-    public MybatisQueryableStreamMany(Class<T> entityClass, MysqlBaseMapper<T> baseMapper, Integer seqNo, Type... renameClass) {
+    public MybatisQueryableStreamMany(Class<T> entityClass, StreamBaseMapper<T> baseMapper, Integer seqNo, Type... renameClass) {
         super(entityClass, baseMapper, renameClass);
         this.seqNo = seqNo;
     }
 
-    public MybatisQueryableStreamMany(ExQueryWrapper<T> queryWrapper, Class<T> entityClass, MysqlBaseMapper<T> baseMapper, Integer seqNo, Type... renameClass) {
+    public MybatisQueryableStreamMany(ExQueryWrapper<T> queryWrapper, Class<T> entityClass, StreamBaseMapper<T> baseMapper, Integer seqNo, Type... renameClass) {
         super(queryWrapper, entityClass, baseMapper, renameClass);
         this.seqNo = seqNo;
     }
 
-    public MybatisQueryableStreamMany(Class<T> entityClass, MysqlBaseMapper<T> baseMapper, Integer seqNo, TypeReference<?>... renameType) {
+    public MybatisQueryableStreamMany(Class<T> entityClass, StreamBaseMapper<T> baseMapper, Integer seqNo, TypeReference<?>... renameType) {
         super(entityClass, baseMapper, renameType);
         this.seqNo = seqNo;
     }
 
-    public MybatisQueryableStreamMany(ExQueryWrapper<T> queryWrapper, Class<T> entityClass, MysqlBaseMapper<T> baseMapper, Integer seqNo, TypeReference<?>... renameType) {
+    public MybatisQueryableStreamMany(ExQueryWrapper<T> queryWrapper, Class<T> entityClass, StreamBaseMapper<T> baseMapper, Integer seqNo, TypeReference<?>... renameType) {
         super(queryWrapper, entityClass, baseMapper, renameType);
         this.seqNo = seqNo;
     }

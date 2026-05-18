@@ -1,7 +1,7 @@
 package com.baomidou.mybatisplus.extension.stream;
 
 
-import com.baomidou.mybatisplus.extension.mapper.MysqlBaseMapper;
+import com.baomidou.mybatisplus.extension.mapper.StreamBaseMapper;
 import com.baomidou.mybatisplus.toolkit.MybatisUtil;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -22,11 +22,11 @@ public abstract class MybatisStream<T, R, Wrapper extends ExQueryWrapper<T>, Chi
     protected final Wrapper queryWrapper;
 
     protected final Class<T> entityClass;
-    protected final MysqlBaseMapper<T> baseMapper;
+    protected final StreamBaseMapper<T> baseMapper;
 
     protected Consumer<? super R> peekAction;
 
-    public MybatisStream(Wrapper queryWrapper, Class<T> entityClass, MysqlBaseMapper<T> baseMapper) {
+    public MybatisStream(Wrapper queryWrapper, Class<T> entityClass, StreamBaseMapper<T> baseMapper) {
         this.queryWrapper = queryWrapper;
         this.entityClass = entityClass;
         this.baseMapper = baseMapper;

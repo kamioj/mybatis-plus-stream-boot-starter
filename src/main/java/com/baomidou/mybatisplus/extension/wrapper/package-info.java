@@ -29,7 +29,7 @@
  * {@link com.baomidou.mybatisplus.extension.wrapper.OrderLambdaQueryWrapper}。
  *
  * <p>其他 Normal/Group/Duplicate 系列通常作为 lambda 参数类型出现在
- * {@code IMysqlServiceBase} 的方法签名里，用户在 {@code Consumer<...>} 体内使用。
+ * {@code IStreamService} 的方法签名里，用户在 {@code Consumer<...>} 体内使用。
  *
  * <p><b>新增维护提醒</b>：扩展一种条件能力时，先找对应的 {@code Abstract*} 基类；
  * 再决定要不要在 {@code Normal/Group/Duplicate/Sub} 变体中各补一份——

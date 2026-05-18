@@ -61,7 +61,7 @@ public final class GroupLambdaQueryWrapper extends LambdaQueryWrapper<GroupLambd
             if (!StringUtils.isEmpty(sqlGroup)) {
                 getQueryWrapper().groupBy(sqlGroup);
             }
-        } catch (InstantiationException | IllegalAccessException ignored) {
+        } catch (ReflectiveOperationException ignored) {
         }
         return typedThis;
     }
@@ -78,7 +78,7 @@ public final class GroupLambdaQueryWrapper extends LambdaQueryWrapper<GroupLambd
             if (!StringUtils.isEmpty(sqlHaving)) {
                 getQueryWrapper().having(sqlHaving);
             }
-        } catch (InstantiationException | IllegalAccessException ignored) {
+        } catch (ReflectiveOperationException ignored) {
         }
         return typedThis;
     }

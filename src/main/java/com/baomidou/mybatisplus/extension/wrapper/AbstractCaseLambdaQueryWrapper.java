@@ -91,7 +91,7 @@ public abstract class AbstractCaseLambdaQueryWrapper<W extends AbstractWhereLamb
         try {
             String subSqlSegment = this.getSubSqlSegment(caseWhen, wClazz);
             whenList.add("WHEN " + subSqlSegment + " THEN " + getSubSqlSegment(caseThenFunc, fClazz));
-        } catch (InstantiationException | IllegalAccessException ignored) {
+        } catch (ReflectiveOperationException ignored) {
         }
         return typedThis;
     }
@@ -126,7 +126,7 @@ public abstract class AbstractCaseLambdaQueryWrapper<W extends AbstractWhereLamb
     public Children elseFunc(Function<F, V> caseElseFunc) {
         try {
             elseValue = getSubSqlSegment(caseElseFunc, fClazz);
-        } catch (InstantiationException | IllegalAccessException ignored) {
+        } catch (ReflectiveOperationException ignored) {
         }
         return typedThis;
     }

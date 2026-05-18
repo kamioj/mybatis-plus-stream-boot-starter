@@ -7,7 +7,7 @@ package com.baomidou.mybatisplus.extension.metadata;
  * <p>
  * Author: 小明同学
  */
-public enum MysqlDataType {
+public enum SqlDataType {
 
     //  将值转换为DATE。格式:"YYYY-MM-DD"
     DATE,

@@ -10,6 +10,7 @@ import com.baomidou.mybatisplus.core.toolkit.Constants;
 import com.baomidou.mybatisplus.core.toolkit.StringPool;
 import com.baomidou.mybatisplus.core.toolkit.StringUtils;
 import com.baomidou.mybatisplus.toolkit.MybatisUtil;
+import com.baomidou.mybatisplus.extension.dialect.DialectRegistry;
 import com.baomidou.mybatisplus.extension.metadata.TableInfo;
 
 import java.util.*;
@@ -26,6 +27,10 @@ public class ExQueryWrapper<T> extends QueryWrapper<T> {
 
     private boolean distinct;
     private boolean forUpdate;
+    /** 4.0：精细行锁模式。为 null 时退化到 {@code forUpdate} 布尔字段的语义（兼容 3.x）。*/
+    private com.baomidou.mybatisplus.extension.dialect.LockMode lockMode;
+    /** 4.0：仅在 {@code lockMode == WAIT} 时使用，单位秒 */
+    private int lockWaitSeconds;
 
     private final List<String> selectSqlList = new ArrayList<>();
     private final Set<String> keySet = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
@@ -90,7 +95,7 @@ public class ExQueryWrapper<T> extends QueryWrapper<T> {
         // 限制只查一条记录
         existQueryWrapper.setSkip(0);
         existQueryWrapper.setLimit(1);
-        existQueryWrapper.last("LIMIT " + existQueryWrapper.getSkip() + ", " + existQueryWrapper.getLimit());
+        existQueryWrapper.last(DialectRegistry.current().paginate("", existQueryWrapper.getSkip(), existQueryWrapper.getLimit()).trim());
         return existQueryWrapper;
     }
 
@@ -240,7 +245,7 @@ public class ExQueryWrapper<T> extends QueryWrapper<T> {
         // 设置分页大小
         pageQueryWrapper.setSkip((pageNumber - 1) * pageSize);
         pageQueryWrapper.setLimit(pageSize);
-        pageQueryWrapper.last("LIMIT " + pageQueryWrapper.getSkip() + ", " + pageQueryWrapper.getLimit());
+        pageQueryWrapper.last(DialectRegistry.current().paginate("", pageQueryWrapper.getSkip(), pageQueryWrapper.getLimit()).trim());
 
         return pageQueryWrapper;
     }
@@ -366,6 +371,23 @@ public class ExQueryWrapper<T> extends QueryWrapper<T> {
         this.updateSelect();
     }
 
+    public com.baomidou.mybatisplus.extension.dialect.LockMode getLockMode() {
+        return lockMode;
+    }
+
+    public void setLockMode(com.baomidou.mybatisplus.extension.dialect.LockMode lockMode) {
+        this.lockMode = lockMode;
+        this.forUpdate = (lockMode != null);
+    }
+
+    public int getLockWaitSeconds() {
+        return lockWaitSeconds;
+    }
+
+    public void setLockWaitSeconds(int lockWaitSeconds) {
+        this.lockWaitSeconds = lockWaitSeconds;
+    }
+
     public boolean isForUpdate() {
         return forUpdate;
     }
@@ -422,6 +444,8 @@ public class ExQueryWrapper<T> extends QueryWrapper<T> {
         joinTables.clear();
         distinct = false;
         forUpdate = false;
+        lockMode = null;
+        lockWaitSeconds = 0;
         selectSqlList.clear();
         keySet.clear();
         limit = Long.MAX_VALUE;
