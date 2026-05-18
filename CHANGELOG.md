@@ -13,6 +13,51 @@
 
 （暂无）
 
+## [4.0.3.0] - 2026-05-19
+
+### Added
+
+**DM 三种批量写入完整实现**（通过 `MERGE INTO` + `@InsertProvider`）：
+
+| API | DM 8 生成的 SQL（Oracle 兼容模式）|
+|---|---|
+| `saveDuplicate` | `MERGE INTO t USING (SELECT ... FROM DUAL UNION ALL ...) src ON (t.pk = src.pk) WHEN MATCHED THEN UPDATE SET col = ... WHEN NOT MATCHED THEN INSERT ...` |
+| `saveIgnore` | `MERGE INTO ... WHEN NOT MATCHED THEN INSERT ...`（无 WHEN MATCHED → 已存在不动）|
+| `saveReplace` | `MERGE INTO ... WHEN MATCHED THEN UPDATE SET 全列 = src.全列 WHEN NOT MATCHED THEN INSERT ...` |
+
+DM `saveDuplicate / saveReplace` 同 PG，要求实体声明 `@TableId`（MERGE INTO ON 子句必需）。
+
+### Fixed
+
+**`columns` 列名硬编码反引号 bug**（4.0.2 隐藏问题）：
+
+`MybatisExecutableStream` 之前用 `` `column` `` 硬拼列名（MySQL 风格）。改为走 `DialectRegistry.current().quoteIdentifier(name)` 后：
+
+- MySQL: `` `column` ``（不变）
+- PostgreSQL: `"column"` （正确）
+- DM: `"column"` （正确）
+
+修复 8 处 `StringPool.BACKTICK` 调用。这个 bug 在 4.0.2 PG `saveDuplicate / saveIgnore / saveReplace` 真实跑时可能触发；4.0.3 之前未 surface 是因为没集成测试。
+
+### Added (SPI)
+
+- `SqlDialect.useMergeInto(WriteMode)` 默认 false；DM 在 DUPLICATE/IGNORE/REPLACE 返回 true
+- `SqlDialect.buildMergeIntoScript(columns, wrapper)` 默认 throw；DM 实现完整 `<script>...</script>` 字符串
+- `MergeIntoSqlProvider` 类：`@InsertProvider` 入口，把请求委托给当前 dialect
+- `StreamBaseMapper.mergeInto(columns, values, wrapper)` 新增 mapper 方法
+- `MybatisExecutableStream.dispatchBatchWrite(...)` 私有 helper：根据 dialect 选 INSERT vs MERGE INTO 路径
+
+### 三方言完整能力（4.0.3 起）
+
+| API | MySQL | PG | DM 8 |
+|---|---|---|---|
+| `saveBatchWithoutId` | ✅ | ✅ | ✅ |
+| `saveDuplicate` | ✅ | ✅ | ✅ |
+| `saveIgnore` | ✅ | ✅ | ✅ |
+| `saveReplace` | ✅ | ✅ | ✅ |
+| `forUpdate` 系列 | ✅ | ✅ NOWAIT/SKIP | ✅ NOWAIT/WAIT n |
+| 所有查询路径 | ✅ | ✅ | ✅ |
+
 ## [4.0.2.0] - 2026-05-19
 
 ### Added
@@ -208,7 +253,8 @@ extension/
 
 ---
 
-[Unreleased]: https://github.com/kamioj/mybatis-plus-stream-boot-starter/compare/v4.0.2.0...HEAD
+[Unreleased]: https://github.com/kamioj/mybatis-plus-stream-boot-starter/compare/v4.0.3.0...HEAD
+[4.0.3.0]: https://github.com/kamioj/mybatis-plus-stream-boot-starter/compare/v4.0.2.0...v4.0.3.0
 [4.0.2.0]: https://github.com/kamioj/mybatis-plus-stream-boot-starter/compare/v4.0.1.0...v4.0.2.0
 [4.0.1.0]: https://github.com/kamioj/mybatis-plus-stream-boot-starter/compare/v4.0.0.0...v4.0.1.0
 [4.0.0.0]: https://github.com/kamioj/mybatis-plus-stream-boot-starter/compare/v3.5.16.0...v4.0.0.0

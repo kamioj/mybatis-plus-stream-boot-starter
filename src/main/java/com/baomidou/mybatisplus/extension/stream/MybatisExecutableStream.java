@@ -126,12 +126,12 @@ public class MybatisExecutableStream<T> extends MybatisStream<T, T, ExecutableQu
                 if (columnInfo.getTableField() != null && columnInfo.getTableField().insertStrategy() != null && columnInfo.getTableField().insertStrategy().equals(FieldStrategy.NEVER)) {
                     continue;
                 }
-                columnMap.put(columnInfo.getPropertyName(), StringPool.BACKTICK + columnInfo.getColumnName() + StringPool.BACKTICK);
+                columnMap.put(columnInfo.getPropertyName(), com.baomidou.mybatisplus.extension.dialect.DialectRegistry.current().quoteIdentifier(columnInfo.getColumnName()));
             }
         } else {
             // 配置了更新列，只插入更新列
             for (ColumnInfo columnInfo : queryWrapper.getEffectColumns()) {
-                columnMap.put(columnInfo.getPropertyName(), StringPool.BACKTICK + columnInfo.getColumnName() + StringPool.BACKTICK);
+                columnMap.put(columnInfo.getPropertyName(), com.baomidou.mybatisplus.extension.dialect.DialectRegistry.current().quoteIdentifier(columnInfo.getColumnName()));
             }
         }
 
@@ -162,7 +162,7 @@ public class MybatisExecutableStream<T> extends MybatisStream<T, T, ExecutableQu
                 values = itemList.toArray(new Object[0][]);
                 itemList.clear();
 
-                result += baseMapper.insertDuplicate(columns, values, queryWrapper);
+                result += dispatchBatchWrite(columns, values);
 //              g   int count = values.length;
 //              g  addOrUnchangedCount += 2 * count - result;
 //              g  updateCount += result - count;
@@ -198,12 +198,12 @@ public class MybatisExecutableStream<T> extends MybatisStream<T, T, ExecutableQu
                 if (columnInfo.getTableField() != null && columnInfo.getTableField().insertStrategy() != null && columnInfo.getTableField().insertStrategy().equals(FieldStrategy.NEVER)) {
                     continue;
                 }
-                columnMap.put(columnInfo.getPropertyName(), StringPool.BACKTICK + columnInfo.getColumnName() + StringPool.BACKTICK);
+                columnMap.put(columnInfo.getPropertyName(), com.baomidou.mybatisplus.extension.dialect.DialectRegistry.current().quoteIdentifier(columnInfo.getColumnName()));
             }
         } else {
             // 配置了更新列，只插入更新列
             for (ColumnInfo columnInfo : queryWrapper.getEffectColumns()) {
-                columnMap.put(columnInfo.getPropertyName(), StringPool.BACKTICK + columnInfo.getColumnName() + StringPool.BACKTICK);
+                columnMap.put(columnInfo.getPropertyName(), com.baomidou.mybatisplus.extension.dialect.DialectRegistry.current().quoteIdentifier(columnInfo.getColumnName()));
             }
         }
 
@@ -234,7 +234,7 @@ public class MybatisExecutableStream<T> extends MybatisStream<T, T, ExecutableQu
                 values = itemList.toArray(new Object[0][]);
                 itemList.clear();
 
-                result += baseMapper.insertIgnore(columns, values, queryWrapper);
+                result += dispatchBatchWrite(columns, values);
 //              g   int count = values.length;
 //              g  addOrUnchangedCount += 2 * count - result;
 //              g  updateCount += result - count;
@@ -270,12 +270,12 @@ public class MybatisExecutableStream<T> extends MybatisStream<T, T, ExecutableQu
                 if (columnInfo.getTableField() != null && columnInfo.getTableField().insertStrategy() != null && columnInfo.getTableField().insertStrategy().equals(FieldStrategy.NEVER)) {
                     continue;
                 }
-                columnMap.put(columnInfo.getPropertyName(), StringPool.BACKTICK + columnInfo.getColumnName() + StringPool.BACKTICK);
+                columnMap.put(columnInfo.getPropertyName(), com.baomidou.mybatisplus.extension.dialect.DialectRegistry.current().quoteIdentifier(columnInfo.getColumnName()));
             }
         } else {
             // 配置了更新列，只插入更新列
             for (ColumnInfo columnInfo : queryWrapper.getEffectColumns()) {
-                columnMap.put(columnInfo.getPropertyName(), StringPool.BACKTICK + columnInfo.getColumnName() + StringPool.BACKTICK);
+                columnMap.put(columnInfo.getPropertyName(), com.baomidou.mybatisplus.extension.dialect.DialectRegistry.current().quoteIdentifier(columnInfo.getColumnName()));
             }
         }
 
@@ -306,7 +306,7 @@ public class MybatisExecutableStream<T> extends MybatisStream<T, T, ExecutableQu
                 values = itemList.toArray(new Object[0][]);
                 itemList.clear();
 
-                result += baseMapper.insertReplace(columns, values, queryWrapper);
+                result += dispatchBatchWrite(columns, values);
 //              g   int count = values.length;
 //              g  addOrUnchangedCount += 2 * count - result;
 //              g  updateCount += result - count;
@@ -376,7 +376,7 @@ public class MybatisExecutableStream<T> extends MybatisStream<T, T, ExecutableQu
                     }
                     funcLambda = new NormalFunctionLambdaQueryWrapper();
                     funcLambda.value(value);
-                    this.queryWrapper.addSetter(this.queryWrapper.getFromTableRename() + StringPool.DOT + StringPool.BACKTICK + columnInfo.getColumnName() + StringPool.BACKTICK + " = " + funcLambda.getSqlSegment(this.queryWrapper));
+                    this.queryWrapper.addSetter(this.queryWrapper.getFromTableRename() + StringPool.DOT + com.baomidou.mybatisplus.extension.dialect.DialectRegistry.current().quoteIdentifier(columnInfo.getColumnName()) + " = " + funcLambda.getSqlSegment(this.queryWrapper));
                 }
             } else {
                 // 配置了更新列，只插入更新列
@@ -384,7 +384,7 @@ public class MybatisExecutableStream<T> extends MybatisStream<T, T, ExecutableQu
                     value = ReflectUtils.getPropertyValue(entity, columnInfo.getPropertyName());
                     funcLambda = new NormalFunctionLambdaQueryWrapper();
                     funcLambda.value(value);
-                    this.queryWrapper.addSetter(this.queryWrapper.getFromTableRename() + StringPool.DOT + StringPool.BACKTICK + columnInfo.getColumnName() + StringPool.BACKTICK + " = " + funcLambda.getSqlSegment(this.queryWrapper));
+                    this.queryWrapper.addSetter(this.queryWrapper.getFromTableRename() + StringPool.DOT + com.baomidou.mybatisplus.extension.dialect.DialectRegistry.current().quoteIdentifier(columnInfo.getColumnName()) + " = " + funcLambda.getSqlSegment(this.queryWrapper));
                 }
             }
             return baseMapper.updateBatch(this.queryWrapper);
@@ -397,4 +397,17 @@ public class MybatisExecutableStream<T> extends MybatisStream<T, T, ExecutableQu
         }
     }
 
+    /**
+     * 4.0.3：根据当前方言选择走标准 INSERT 路径还是 MERGE INTO 路径。
+     * MySQL / PG 走 {@code insertDuplicate}（三个 INSERT mapper 方法 SQL 等价、由 dialect 占位驱动）；
+     * DM 在 DUPLICATE/IGNORE/REPLACE 模式走 {@code mergeInto}（@InsertProvider 调 dialect 生成完整 SQL）。
+     */
+    private int dispatchBatchWrite(String[] columns, Object[][] values) {
+        com.baomidou.mybatisplus.extension.dialect.SqlDialect d =
+            com.baomidou.mybatisplus.extension.dialect.DialectRegistry.current();
+        if (d.useMergeInto(queryWrapper.getWriteMode())) {
+            return baseMapper.mergeInto(columns, values, queryWrapper);
+        }
+        return baseMapper.insertDuplicate(columns, values, queryWrapper);
+    }
 }
