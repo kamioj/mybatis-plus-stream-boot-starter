@@ -9,6 +9,16 @@
 API 行为、方法签名、SQL 渲染、版本号约定（`{MP-ver}.{patch}`）**完全不变**。
 **`MysqlBaseMapper` / `IMysqlServiceBase` / `MysqlServiceBaseImpl` 旧名保留 `@Deprecated` 空壳到 4.1，4.0 可平滑过渡**。
 
+## ⚠️ 删除（21 个 dead 类，4.0 一次性清理）
+
+下列类被认定为预防性 over-engineering（生产项目 0 引用），4.0 移除：
+
+- `bo.functional.Function3` ... `Function15`（13 个）
+- `bo.functional.Consumer3` ... `Consumer10`（8 个）
+- 整个 `bo.functional` 子包
+
+`BiMapKey` / `MapKey3..5` 保留（生产真实使用）。如你的代码 import 了上述被删类，编译会失败——99% 概率你没用到（这些类从未真正接通到 starter API）。
+
 ## 新增能力概览（升级即用）
 
 - **方言 SPI**：`com.baomidou.mybatisplus.extension.dialect.SqlDialect` —— 可注册自定义方言；本库自身不引入 JDBC 驱动。详见 [DIALECT.md](#dialect-extension) 章节

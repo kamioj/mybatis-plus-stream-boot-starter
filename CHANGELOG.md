@@ -69,6 +69,11 @@ extension/
 - `MIGRATION-4.0.md`：完整的旧→新路径表 + Bash/PowerShell 一键迁移脚本
 - `dev-docs/ARITY-TEMPLATE.md`：Function/Consumer/MapKey 新增 arity 的模板说明
 
+### Removed
+
+- **`Function3..15` + `Consumer3..10` 共 21 个类全部移除**。基于生产项目 `ceremonyproapp` 实测，这两族类业务代码 0 调用——是预防性 over-engineering。`BiMapKey` / `MapKey3..5` **保留**（生产 70+ 引用，真实热点）。  
+  外部用户如有 import 这两个族，4.0 会编译错误；请重构（业务上几乎不可能用得到这些类，因为 starter 的高阶 API 已用 `Object[]` 投影避开了 FunctionN）。
+
 ### Performance
 
 - `ReflectUtils.getLambda` 加 `ClassValue<Method>` 缓存：同一 lambda 表达式产生同一 JVM 内部类，缓存命中后无需重复反射 lookup（生产负载下命中率 &gt; 99%）

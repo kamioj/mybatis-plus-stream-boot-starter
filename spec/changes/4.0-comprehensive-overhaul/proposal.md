@@ -131,6 +131,43 @@ public interface SqlDialect {
 - 用 JDK 17 `pattern matching for instanceof` 简化 `ReflectUtils` 里 `if (type instanceof X) { X x = (X) type; ... }`
 - `MybatisUtil.getTableInfo` 加 `ClassValue<TableInfo>` 缓存
 
+### P6（追加于 2026-05-18）：SQL-aware Terminal Operations
+
+**动机**：基于 `ceremonyproapp` 50+ 处真实代码证据，用户**主动绕过** `.listJoin/.listGroup/.pageJoin` 高阶 API，改用 `service.list(...).stream().collect(Collectors.toMap/groupingBy/...)` 三段式。问题：全量加载到内存才能进入 JDK Stream，浪费数据传输和 JVM 堆。
+
+**真痛点**：用户已习惯 JDK Collector API 心智，但希望 starter 在收集前**下推 SQL**。
+
+**新增 5 个 terminal 方法**（添加到 `MybatisQueryableStream` 基类，所有 Stream1..5 自动继承）：
+
+```java
+/** SQL: SELECT col FROM ... 应用层收 Set */
+<K> Set<K> toSet(SFunction<T, K> col);
+
+/** SQL: SELECT keyCol, valCol FROM ... 应用层收 Map */
+<K, V> Map<K, V> toMap(SFunction<T, K> keyCol, SFunction<T, V> valCol);
+
+/** Key 冲突时用 merger 合并 */
+<K, V> Map<K, V> toMap(SFunction<T, K> keyCol, SFunction<T, V> valCol, BinaryOperator<V> merger);
+
+/** SQL: SELECT * 应用层按 keyCol 分组（保留所有列）；如只要 key+count 用 toMapCount */
+<K> Map<K, List<T>> groupingBy(SFunction<T, K> keyCol);
+
+/** SQL: SELECT keyCol, COUNT(*) GROUP BY keyCol —— GROUP BY 真下推到数据库 */
+<K> Map<K, Long> toMapCount(SFunction<T, K> keyCol);
+```
+
+**设计要点**：
+
+- **命名与 JDK 接近**（`toMap/toSet/groupingBy`），用户已会
+- **接 `SFunction<T, ?>` 而非 lambda** —— starter 解析为列名下推 SQL
+- **"SQL 一目了然" 兑现**：方法名 → SQL 关键字直接映射
+- **零 breaking**：纯增量；旧路径继续工作
+- 多元 key 变体（`toMap` with 复合 key、`groupingBy` 多列）留 4.1，按真实需求迭代
+
+**工作量估算**：6-8 h 实施 + 2h 文档 = **~10h**
+
+---
+
 ### P5 SQL 表达完整性补齐（4.0 必做的 2 项；其他留 4.1）
 
 | 必做（4.0）| 推迟（4.1）|

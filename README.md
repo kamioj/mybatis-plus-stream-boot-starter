@@ -405,8 +405,7 @@ src/main/java/com/baomidou/mybatisplus/extension/
 ├── metadata/     (6 类)                     # 表/列/类型元数据（含 SqlDataType，旧名 MysqlDataType）
 ├── support/      (2 类)                     # 工具：StringUtils, LambdaOrderItem
 └── bo/
-    ├── functional/  Function3..15, Consumer3..10  # 多元函数式接口
-    ├── key/         BiMapKey, MapKey3..5          # 多列组合键
+    ├── key/         BiMapKey, MapKey3..5          # 多列组合键（生产高频）
     └── (root)       PageVo, SortVo, BiList        # 通用容器
 ```
 
