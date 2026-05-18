@@ -11,7 +11,40 @@
 
 ## [Unreleased]
 
-（暂无）
+### ⚠️ BREAKING CHANGES — 包结构重组（4.0.0.0）
+
+所有类按职责拆到 6 个子包，平铺的 `com.baomidou.mybatisplus.extension.*` 顶层不再有任何业务类：
+
+```
+extension/
+├── core/         (4) ExQueryWrapper, ExecutableQueryWrapper, LambdaQueryWrapper, Converter
+├── wrapper/      (26) 所有 *LambdaQueryWrapper（按"上下文 × 角色"网格命名）
+├── stream/      (9) MybatisStream / MybatisQueryableStream{,1..5,Many} / MybatisExecutableStream
+├── value/       (7) Single*Value 家族 + NonValue
+├── metadata/    (6) ColumnInfo, TableInfo, MysqlDataType, ProcedureParam(Def), Struct
+├── support/     (2) StringUtils, LambdaOrderItem
+├── bo/
+│   ├── functional/ (21) Function3..15, Consumer3..10
+│   ├── key/        (4) MapKey3..5, BiMapKey
+│   └── (root)      PageVo, SortVo, BiList（不动）
+├── mapper/      MysqlBaseMapper（不动）
+└── service/     IMysqlServiceBase + impl/（不动）
+```
+
+API 行为、方法签名、SQL 渲染、版本号约定 **完全不变**。只有 import 路径变化。
+
+**迁移**：
+- IDE 一键：`Ctrl+Alt+O`（IntelliJ）/ `Ctrl+Shift+O`（Eclipse）即可
+- CLI 批量：见 [MIGRATION-4.0.md](MIGRATION-4.0.md) 的 `migrate-to-4.0.sh` / `.ps1`
+
+### Added
+- 每个子包都有 `package-info.java` 描述其职责和命名约定，方便 JavaDoc 与 IDE 导航
+- `MIGRATION-4.0.md` —— 完整的旧→新路径表 + Bash/PowerShell 一键迁移脚本
+- `dev-docs/ARITY-TEMPLATE.md` —— Function/Consumer/MapKey 新增 arity 的模板说明
+
+### Internal
+- 重组完全由 `scripts/restructure.py` 机械完成（保留 git mv 历史，方便 `git log --follow` 追溯）
+
 
 ## [3.5.16.0] - 2026-05-17
 

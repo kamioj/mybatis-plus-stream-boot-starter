@@ -8,6 +8,16 @@ import java.util.Collection;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import com.baomidou.mybatisplus.extension.stream.MybatisExecutableStream;
+import com.baomidou.mybatisplus.extension.stream.MybatisQueryableStream1;
+import com.baomidou.mybatisplus.extension.wrapper.DuplicateSetLambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.wrapper.GroupFunctionLambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.wrapper.GroupLambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.wrapper.JoinLambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.wrapper.NormalSetLambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.wrapper.NormalWhereLambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.wrapper.OrderLambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.wrapper.SelectLambdaQueryWrapper;
 
 public interface IMysqlServiceBase<T> extends IService<T> {
 

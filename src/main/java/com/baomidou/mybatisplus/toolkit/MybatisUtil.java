@@ -11,10 +11,6 @@ import com.baomidou.mybatisplus.core.metadata.OrderItem;
 import com.baomidou.mybatisplus.core.toolkit.CollectionUtils;
 import com.baomidou.mybatisplus.core.toolkit.GlobalConfigUtils;
 import com.baomidou.mybatisplus.core.toolkit.StringUtils;
-import com.baomidou.mybatisplus.extension.ColumnInfo;
-import com.baomidou.mybatisplus.extension.Converter;
-import com.baomidou.mybatisplus.extension.LambdaOrderItem;
-import com.baomidou.mybatisplus.extension.TableInfo;
 import com.baomidou.mybatisplus.extension.bo.PageVo;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 
@@ -26,6 +22,10 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import com.baomidou.mybatisplus.extension.core.Converter;
+import com.baomidou.mybatisplus.extension.metadata.ColumnInfo;
+import com.baomidou.mybatisplus.extension.metadata.TableInfo;
+import com.baomidou.mybatisplus.extension.support.LambdaOrderItem;
 
 public final class MybatisUtil {
     private final static Map<Class<?>, TableInfo<?>> TableCacheMap = new HashMap<>();
