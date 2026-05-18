@@ -459,7 +459,7 @@ public abstract class AbstractFunctionLambdaQueryWrapper<W extends AbstractWhere
             }
             sb.append(")");
             sqlSegment = sb.toString();
-        } catch (InstantiationException | IllegalAccessException ignored) {
+        } catch (ReflectiveOperationException ignored) {
         }
         return null;
     }
@@ -510,7 +510,7 @@ public abstract class AbstractFunctionLambdaQueryWrapper<W extends AbstractWhere
                 sb.append(")");
                 sqlSegment = sb.toString();
             }
-        } catch (InstantiationException | IllegalAccessException ignored) {
+        } catch (ReflectiveOperationException ignored) {
         }
         return null;
     }
@@ -937,7 +937,7 @@ public abstract class AbstractFunctionLambdaQueryWrapper<W extends AbstractWhere
     public <V extends Comparable<V>> Long betweenFunc(Function<Children, V> func1, Function<Children, V> func2, Function<Children, ?> func3) {
         try {
             sqlSegment = "(" + getSubSqlSegment(func1, (Class<Children>) getClass()) + " BETWEEN " + getSubSqlSegment(func2, (Class<Children>) getClass()) + " AND " + getSubSqlSegment(func3, (Class<Children>) getClass()) + ")";
-        } catch (InstantiationException | IllegalAccessException ignored) {
+        } catch (ReflectiveOperationException ignored) {
         }
         return null;
     }
@@ -969,7 +969,7 @@ public abstract class AbstractFunctionLambdaQueryWrapper<W extends AbstractWhere
     public <V extends Comparable<V>> Long notBetweenFunc(Function<Children, V> func1, Function<Children, V> func2, Function<Children, ?> func3) {
         try {
             sqlSegment = "(" + getSubSqlSegment(func1, (Class<Children>) getClass()) + " NOT BETWEEN " + getSubSqlSegment(func2, (Class<Children>) getClass()) + " AND " + getSubSqlSegment(func3, (Class<Children>) getClass()) + ")";
-        } catch (InstantiationException | IllegalAccessException ignored) {
+        } catch (ReflectiveOperationException ignored) {
         }
         return null;
     }
@@ -1069,7 +1069,7 @@ public abstract class AbstractFunctionLambdaQueryWrapper<W extends AbstractWhere
     public Long exists(Consumer<NonValueSubSqlLambdaQueryWrapper> subSql) {
         try {
             sqlSegment = "EXISTS(" + getSubSqlSegment(subSql, NonValueSubSqlLambdaQueryWrapper.class) + ")";
-        } catch (InstantiationException | IllegalAccessException ignored) {
+        } catch (ReflectiveOperationException ignored) {
         }
         return null;
     }
@@ -1083,7 +1083,7 @@ public abstract class AbstractFunctionLambdaQueryWrapper<W extends AbstractWhere
     public Long notExists(Consumer<NonValueSubSqlLambdaQueryWrapper> subSql) {
         try {
             sqlSegment = "NOT EXISTS(" + getSubSqlSegment(subSql, NonValueSubSqlLambdaQueryWrapper.class) + ")";
-        } catch (InstantiationException | IllegalAccessException ignored) {
+        } catch (ReflectiveOperationException ignored) {
         }
         return null;
     }
@@ -2012,7 +2012,7 @@ public abstract class AbstractFunctionLambdaQueryWrapper<W extends AbstractWhere
     public Date dateAddFunc(Function<Children, Date> func, Function<Children, Number> exprFunc, String type) {
         try {
             sqlSegment = "DATE_ADD(" + getSubSqlSegment(func, (Class<Children>) getClass()) + ", INTERVAL " + getSubSqlSegment(exprFunc, (Class<Children>) getClass()) + " " + type + ")";
-        } catch (InstantiationException | IllegalAccessException ignored) {
+        } catch (ReflectiveOperationException ignored) {
         }
         return null;
     }
@@ -2078,7 +2078,7 @@ public abstract class AbstractFunctionLambdaQueryWrapper<W extends AbstractWhere
             W whereLambda = wClazz.newInstance();
             predicate.accept(whereLambda);
             sqlSegment = "IF(" + whereLambda.getSqlSegment(getQueryWrapper()) + "," + getSubSqlSegment(func1, (Class<Children>) getClass()) + "," + getSubSqlSegment(func2, (Class<Children>) getClass()) + ")";
-        } catch (InstantiationException | IllegalAccessException ignored) {
+        } catch (ReflectiveOperationException ignored) {
         }
         return null;
     }

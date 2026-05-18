@@ -1,8 +1,8 @@
 /**
  * 流式 API 家族——把数据库查询包装成 Java Stream 风格的链式调用。
  *
- * <p><b>用户入口</b>：通过 {@code IMysqlServiceBase#stream()} 或
- * {@code IMysqlServiceBase#executableStream()} 获取，不直接 new。
+ * <p><b>用户入口</b>：通过 {@code IStreamService#stream()} 或
+ * {@code IStreamService#executableStream()} 获取，不直接 new。
  *
  * <p><b>类层级</b>：
  * <ul>

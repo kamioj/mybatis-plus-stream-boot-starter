@@ -3,7 +3,7 @@ package com.baomidou.mybatisplus.extension.stream;
 import com.baomidou.mybatisplus.annotation.FieldStrategy;
 import com.baomidou.mybatisplus.core.toolkit.StringPool;
 import com.baomidou.mybatisplus.core.toolkit.support.SFunction;
-import com.baomidou.mybatisplus.extension.mapper.MysqlBaseMapper;
+import com.baomidou.mybatisplus.extension.mapper.StreamBaseMapper;
 import com.baomidou.mybatisplus.toolkit.ReflectUtils;
 
 import java.lang.reflect.InvocationTargetException;
@@ -23,7 +23,7 @@ public class MybatisExecutableStream<T> extends MybatisStream<T, T, ExecutableQu
 
     private static final int MAX_INSERT_COUNT = 500;
 
-    public MybatisExecutableStream(Class<T> entityClass, MysqlBaseMapper<T> baseMapper) {
+    public MybatisExecutableStream(Class<T> entityClass, StreamBaseMapper<T> baseMapper) {
         super(new ExecutableQueryWrapper<>(entityClass), entityClass, baseMapper);
     }
 

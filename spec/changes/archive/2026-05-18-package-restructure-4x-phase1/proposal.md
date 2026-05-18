@@ -49,6 +49,23 @@ com.baomidou.mybatisplus.extension/
 **收益**：新增 stream 方法 1 处 vs 6 处；可扩展到 arity 6/7/8。  
 **成本**：~4-6 小时初始化（模板抽取 + Maven 配置）+ 1 次 IDE 集成验证；后续零维护。
 
+### 必做 P0.5（追加）：泛型反射热路径优化
+
+**动机**：4.0 是改 API 表面 / 内部反射策略的最后窗口；4.x 系列锁后再改就又是 breaking。借包重组的 PR 顺带把"绕"的代码做局部清理，主要瞄准 SFunction 解析的高频热路径。
+
+**4 项优化**：
+
+| # | 改动 | 文件 | 价值 | API 影响 |
+|---|---|---|---|---|
+| 1 | `ReflectUtils.getLambda()` + 正则提取 → 加 `ClassValue<LambdaInfo>` 缓存层；`LambdaInfo` 含 className（字符串切片）、implMethodName、propertyName | `toolkit/ReflectUtils.java`、`core/LambdaQueryWrapper.java` | **高**：每次 SFunction 解析走缓存，命中后 0 反射；首次解析也省掉正则编译 | 无（纯内部）|
+| 2 | `getSubSqlSegment(predicate, Class<S>)` 保留作底层 API；在 `AbstractWhereLambdaQueryWrapper` 等子类加便捷重载 `getSubSqlSegment(predicate)` 内部走 `this.fClazz` | `wrapper/AbstractWhereLambdaQueryWrapper.java` 等 | 中（代码可读性）| 仅新增 protected 方法，不删旧的 |
+| 3 | `clazz.newInstance()` 反射构造缓存 | `core/LambdaQueryWrapper.java` | **延后**：需 benchmark 验证收益，留 4.1 | — |
+| 4 | MethodHandle 替代 `writeReplace` 反射 | `toolkit/ReflectUtils.java` | 已被 #1 的 ClassValue 缓存吸收（缓存命中后 writeReplace 都跳过）| — |
+
+**实际只做 #1 + #2**，#3 / #4 已经被 #1 覆盖或推迟。
+
+**P0.5 工作量**：~2h（含写一个最小 benchmark 验证 ClassValue 缓存命中率）
+
 ### 不做 P2：Function/Consumer/MapKey 代码生成
 
 `Function3..15` 等历史以来从未改过，痛点不真实。**保持手写**，加一份 `dev-docs/ARITY-TEMPLATE.md` 说明新增 arity 时的复制粘贴模板和 IDE Live Template 示例即可。
@@ -141,6 +158,7 @@ package com.baomidou.mybatisplus.extension.wrapper;
 | **P0-d CHANGELOG + MIGRATION-4.0.md** | 1h | 包括 sed 脚本生成 |
 | **P0-e README / 使用文档.md / docs 站** | 1h | 更新项目结构图和示例 |
 | **P0 小计** | **5.5h** | 加上等 CI + 发版流程约 7h |
+| **P0.5 反射热路径优化** | 2h | ClassValue 缓存 + getSubSqlSegment 便捷重载 |
 | **P1 codegen（可选）** | 4-6h | 抽 stream 模板 + 配 gmaven-plus + 验证 IDE 集成；如不做可推迟 4.1 |
 | **P2 ARITY-TEMPLATE.md** | 0.5h | 不做 codegen 的替代方案 |
 

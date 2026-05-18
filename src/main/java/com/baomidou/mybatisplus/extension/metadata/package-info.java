@@ -6,7 +6,7 @@
  *       （字段名、列名、JDBC 类型、主键标记）</li>
  *   <li>{@link com.baomidou.mybatisplus.extension.metadata.TableInfo} —— 表元数据
  *       （表名、所有列、主键、逻辑删除列）</li>
- *   <li>{@link com.baomidou.mybatisplus.extension.metadata.MysqlDataType} —— MySQL
+ *   <li>{@link com.baomidou.mybatisplus.extension.metadata.SqlDataType} —— MySQL
  *       数据类型枚举</li>
  *   <li>{@link com.baomidou.mybatisplus.extension.metadata.ProcedureParam} /
  *       {@link com.baomidou.mybatisplus.extension.metadata.ProcedureParamDef} ——

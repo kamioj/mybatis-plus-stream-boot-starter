@@ -16,6 +16,6 @@
  *
  * <p>真正的 SELECT 字段 / FROM / JOIN / WHERE / GROUP BY / ORDER BY / LIMIT 由
  * wrapper 在运行时拼到 {@code customSqlFromSegment} / {@code customSqlSegment} /
- * {@code sqlSelect} 占位符中；MysqlBaseMapper 上的注解 SQL 只是骨架。
+ * {@code sqlSelect} 占位符中；StreamBaseMapper 上的注解 SQL 只是骨架。
  */
 package com.baomidou.mybatisplus.extension.core;

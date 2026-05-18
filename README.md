@@ -387,20 +387,23 @@ Map<String, List<User>> usersByRole = userService.stream()
 
 ## 项目结构
 
-> **4.0.0.0 起** 按职责拆分子包；之前用 3.5.x 的请看 [MIGRATION-4.0.md](MIGRATION-4.0.md) 一键迁移 import。
+> **4.0.0.0 起** 按职责拆分子包 + 引入方言 SPI；之前用 3.5.x 的请看 [MIGRATION-4.0.md](MIGRATION-4.0.md) 一键迁移。
 
 ```
 src/main/java/com/baomidou/mybatisplus/extension/
-├── mapper/       MysqlBaseMapper                 # 增强 Mapper 入口（替换 BaseMapper）
-├── service/      IMysqlServiceBase + impl/       # 核心 Service 接口（60+ 方法）
-├── core/         (4 类)                          # 查询执行内核：ExQueryWrapper 等
-├── wrapper/      (26 类)                         # Wrapper 家族：按 "上下文 × 角色" 网格命名
+├── mapper/       StreamBaseMapper           # 增强 Mapper 入口（4.0 起；旧名 MysqlBaseMapper @Deprecated）
+├── service/      IStreamService + impl/     # 核心 Service 接口（60+ 方法）
+├── dialect/      SqlDialect SPI             # 4.0 起：方言扩展（MySQL/PG/DM/自定义）
+│   ├── SqlDialect / DbType / LockMode / DialectRegistry
+│   └── impl/MySqlDialect                    # 默认实现（PostgreSQL/DM 规划 4.0.1 内置）
+├── core/         (4 类)                     # 查询执行内核：ExQueryWrapper 等
+├── wrapper/      (26 类)                    # Wrapper 家族：按 "上下文 × 角色" 网格命名
 │   ├── Abstract* / Normal* / Group* / Duplicate* / Sub*  ← 上下文前缀
 │   └── *Where / *Select / *Set / *Function / *Case        ← 角色后缀
-├── stream/       (9 类)                          # 流式 API：MybatisQueryableStream{,1..5,Many}
-├── value/        (7 类)                          # 单列投影值容器：Single*Value, NonValue
-├── metadata/     (6 类)                          # 表/列/类型元数据
-├── support/      (2 类)                          # 工具：StringUtils, LambdaOrderItem
+├── stream/       (9 类)                     # 流式 API：MybatisQueryableStream{,1..5,Many}
+├── value/        (7 类)                     # 单列投影值容器：Single*Value, NonValue
+├── metadata/     (6 类)                     # 表/列/类型元数据（含 SqlDataType，旧名 MysqlDataType）
+├── support/      (2 类)                     # 工具：StringUtils, LambdaOrderItem
 └── bo/
     ├── functional/  Function3..15, Consumer3..10  # 多元函数式接口
     ├── key/         BiMapKey, MapKey3..5          # 多列组合键
@@ -408,6 +411,12 @@ src/main/java/com/baomidou/mybatisplus/extension/
 ```
 
 每个子包都附带 `package-info.java` 描述其职责，IDE 与 JavaDoc 可直接浏览。
+
+### 设计原则
+
+- **不依赖第三方服务**：本库自身不引入 JDBC 驱动 / 缓存 / 消息队列；方言以 SPI 形式扩展
+- **SQL 标准结构可见**：链式 API 一一对应 SQL 关键字（`.filter`→`WHERE`、`.sorted`→`ORDER BY`、`.exists`→`EXISTS`、`.forUpdateSkipLocked`→`FOR UPDATE SKIP LOCKED`），不抹除 SQL
+- **零反射热点**：SFunction / TableInfo 全部走 `ClassValue` 缓存（首次后命中率 &gt; 99%）
 
 ## 文档
 

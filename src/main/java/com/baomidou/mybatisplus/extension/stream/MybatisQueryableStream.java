@@ -3,7 +3,7 @@ package com.baomidou.mybatisplus.extension.stream;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.metadata.OrderItem;
 import com.baomidou.mybatisplus.core.toolkit.StringPool;
-import com.baomidou.mybatisplus.extension.mapper.MysqlBaseMapper;
+import com.baomidou.mybatisplus.extension.mapper.StreamBaseMapper;
 import com.baomidou.mybatisplus.toolkit.MybatisUtil;
 import com.baomidou.mybatisplus.toolkit.ReflectUtils;
 import org.apache.ibatis.type.TypeReference;
@@ -18,6 +18,9 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import com.baomidou.mybatisplus.extension.core.ExQueryWrapper;
+import com.baomidou.mybatisplus.extension.dialect.DialectRegistry;
+import com.baomidou.mybatisplus.extension.dialect.LockMode;
+import com.baomidou.mybatisplus.extension.dialect.SqlDialect;
 import com.baomidou.mybatisplus.extension.support.LambdaOrderItem;
 import com.baomidou.mybatisplus.extension.value.SingleValue;
 import com.baomidou.mybatisplus.extension.wrapper.GroupLambdaQueryWrapper;
@@ -28,11 +31,11 @@ public abstract class MybatisQueryableStream<T, R, Children extends MybatisQuery
 
     abstract Function<Object[], R> getReturnMapper();
 
-    public MybatisQueryableStream(Class<T> entityClass, MysqlBaseMapper<T> baseMapper, Type... renameClass) {
+    public MybatisQueryableStream(Class<T> entityClass, StreamBaseMapper<T> baseMapper, Type... renameClass) {
         this(null, entityClass, baseMapper, renameClass);
     }
 
-    public MybatisQueryableStream(ExQueryWrapper<T> queryWrapper, Class<T> entityClass, MysqlBaseMapper<T> baseMapper, Type... renameClass) {
+    public MybatisQueryableStream(ExQueryWrapper<T> queryWrapper, Class<T> entityClass, StreamBaseMapper<T> baseMapper, Type... renameClass) {
         super(queryWrapper == null ? new ExQueryWrapper<T>() {{
             setFromTable(MybatisUtil.getTableInfo(entityClass), null);
         }} : queryWrapper, entityClass, baseMapper);
@@ -40,12 +43,12 @@ public abstract class MybatisQueryableStream<T, R, Children extends MybatisQuery
     }
 
     @SafeVarargs
-    public MybatisQueryableStream(Class<T> entityClass, MysqlBaseMapper<T> baseMapper, TypeReference<?>... renameType) {
+    public MybatisQueryableStream(Class<T> entityClass, StreamBaseMapper<T> baseMapper, TypeReference<?>... renameType) {
         this(null, entityClass, baseMapper, renameType);
     }
 
     @SafeVarargs
-    public MybatisQueryableStream(ExQueryWrapper<T> queryWrapper, Class<T> entityClass, MysqlBaseMapper<T> baseMapper, TypeReference<?>... renameType) {
+    public MybatisQueryableStream(ExQueryWrapper<T> queryWrapper, Class<T> entityClass, StreamBaseMapper<T> baseMapper, TypeReference<?>... renameType) {
         super(queryWrapper == null ? new ExQueryWrapper<T>() {{
             setFromTable(MybatisUtil.getTableInfo(entityClass), null);
         }} : queryWrapper, entityClass, baseMapper);
@@ -117,7 +120,7 @@ public abstract class MybatisQueryableStream<T, R, Children extends MybatisQuery
     @Override
     public Children limit(long maxSize) {
         queryWrapper.setLimit(maxSize);
-        queryWrapper.last("LIMIT " + queryWrapper.getSkip() + ", " + queryWrapper.getLimit() + (queryWrapper.isForUpdate() ? " FOR UPDATE" : ""));
+        queryWrapper.last(buildTailClause(queryWrapper.getSkip(), queryWrapper.getLimit(), queryWrapper.isForUpdate()));
         return typedThis;
     }
 
@@ -130,7 +133,7 @@ public abstract class MybatisQueryableStream<T, R, Children extends MybatisQuery
     @Override
     public Children skip(long n) {
         queryWrapper.setSkip(n);
-        queryWrapper.last("LIMIT " + queryWrapper.getSkip() + ", " + queryWrapper.getLimit() + (queryWrapper.isForUpdate() ? " FOR UPDATE" : ""));
+        queryWrapper.last(buildTailClause(queryWrapper.getSkip(), queryWrapper.getLimit(), queryWrapper.isForUpdate()));
         return typedThis;
     }
 
@@ -174,7 +177,7 @@ public abstract class MybatisQueryableStream<T, R, Children extends MybatisQuery
 
     public Children forUpdate() {
         queryWrapper.setForUpdate(true);
-        queryWrapper.last("LIMIT " + queryWrapper.getSkip() + ", " + queryWrapper.getLimit() + (queryWrapper.isForUpdate() ? " FOR UPDATE" : ""));
+        queryWrapper.last(buildTailClause(queryWrapper.getSkip(), queryWrapper.getLimit(), queryWrapper.isForUpdate()));
         return typedThis;
     }
 
@@ -271,4 +274,42 @@ public abstract class MybatisQueryableStream<T, R, Children extends MybatisQuery
         return page;
     }
 
+    /** 拼装查询尾部子句（LIMIT + 可选 FOR UPDATE [模式]），交给当前方言渲染。*/
+    private String buildTailClause(long skip, long limit, boolean forUpdate) {
+        SqlDialect d = DialectRegistry.current();
+        String tail = d.paginate("", skip, limit).trim();
+        if (forUpdate) {
+            LockMode mode = queryWrapper.getLockMode();
+            if (mode == null) {
+                mode = LockMode.FOR_UPDATE;
+            }
+            tail += d.forUpdate(mode, queryWrapper.getLockWaitSeconds());
+        }
+        return tail;
+    }
+
+    /* ============== 4.0：行锁细粒度 API ============== */
+
+    /** {@code FOR UPDATE NOWAIT} —— 行被占用时立即抛错，不等待 */
+    public Children forUpdateNoWait() {
+        return forUpdateWith(LockMode.NOWAIT, 0);
+    }
+
+    /** {@code FOR UPDATE SKIP LOCKED} —— 行被占用时跳过该行 */
+    public Children forUpdateSkipLocked() {
+        return forUpdateWith(LockMode.SKIP_LOCKED, 0);
+    }
+
+    /** {@code FOR UPDATE WAIT n} —— 等待 n 秒后超时抛错（MySQL 不支持，DM 支持）*/
+    public Children forUpdateWait(int seconds) {
+        return forUpdateWith(LockMode.WAIT, seconds);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Children forUpdateWith(LockMode mode, int waitSeconds) {
+        queryWrapper.setLockMode(mode);
+        queryWrapper.setLockWaitSeconds(waitSeconds);
+        queryWrapper.last(buildTailClause(queryWrapper.getSkip(), queryWrapper.getLimit(), true));
+        return (Children) this;
+    }
 }
