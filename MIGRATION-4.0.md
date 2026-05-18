@@ -25,6 +25,7 @@ API 行为、方法签名、SQL 渲染、版本号约定（`{MP-ver}.{patch}`）
 - **EXISTS / NOT EXISTS**：WHERE 上下文新增 `.exists(subSql)` / `.notExists(subSql)`
 - **行锁细粒度**：`.forUpdateNoWait()` / `.forUpdateSkipLocked()` / `.forUpdateWait(int seconds)`
 - **反射热路径优化**：SFunction 解析 ClassValue 缓存（&gt; 99% 命中率），`MybatisUtil.getTableInfo` 无锁化
+- **SQL-aware Terminal Operations**：9 个新方法替代 "全量加载 + JDK Collector" 模式，见下方 [Terminal Operations 章节](#terminal-operations)
 
 ---
 
@@ -423,6 +424,54 @@ userService.stream()
     .filter(w -> w.eq(User::getId, 1))
     .forUpdateWait(5)
     .findFirst();
+```
+
+<a id="terminal-operations"></a>
+
+### SQL-aware Terminal Operations 示例（4.0 重头戏）
+
+之前用户大量写"全量加载 + 内存 Collector"：
+
+```java
+// 旧（全量加载到内存，再 stream + JDK Collector）
+Map<Long, String> userMap = userService.list(w -> w.eq(User::getStatus, 1))
+    .stream()
+    .collect(Collectors.toMap(User::getId, User::getName));
+```
+
+**4.0 起**：
+
+```java
+// SELECT id, name FROM user WHERE status = 1 —— 只取需要的两列
+Map<Long, String> userMap = userService.stream()
+    .filter(w -> w.eq(User::getStatus, 1))
+    .toMap(User::getId, User::getName);
+```
+
+完整 9 个方法（详见 CHANGELOG）：
+
+```java
+// 单列取集合
+Set<String> emails = userService.stream().toSet(User::getEmail);
+
+// 键值 Map（key 冲突时后者覆盖前者）
+Map<Long, String> map = userService.stream().toMap(User::getId, User::getName);
+
+// 键值 Map（自定义冲突合并）
+Map<Long, String> merged = userService.stream()
+    .toMap(User::getDept, User::getName, (a, b) -> a + "," + b);
+
+// 应用层分组（保留完整实体）
+Map<Long, List<User>> byDept = userService.stream().groupingBy(User::getDeptId);
+
+// SQL 下推 COUNT/SUM/AVG/MAX/MIN（数据库完成聚合，1 条结果回 JVM）
+Map<Integer, Long> statusCount = userService.stream().toMapCount(User::getStatus);
+Map<Long, BigDecimal> deptSalarySum = userService.stream()
+    .filter(w -> w.eq(User::getActive, true))
+    .toMapSum(User::getDeptId, User::getSalary);
+Map<Long, Double> deptAvg = userService.stream().toMapAvg(User::getDeptId, User::getSalary);
+Map<Long, LocalDate> deptLatestJoin = userService.stream().toMapMax(User::getDeptId, User::getJoinDate);
+Map<Long, BigDecimal> deptMinSalary = userService.stream().toMapMin(User::getDeptId, User::getSalary);
 ```
 
 ### EXISTS / NOT EXISTS 示例
