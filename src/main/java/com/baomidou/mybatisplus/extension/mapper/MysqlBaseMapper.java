@@ -3,14 +3,14 @@ package com.baomidou.mybatisplus.extension.mapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Constants;
-import com.baomidou.mybatisplus.extension.ExQueryWrapper;
-import com.baomidou.mybatisplus.extension.ExecutableQueryWrapper;
-import com.baomidou.mybatisplus.extension.ProcedureParamDef;
 import org.apache.ibatis.annotations.*;
 import org.apache.ibatis.mapping.StatementType;
 
 import java.util.List;
 import java.util.Map;
+import com.baomidou.mybatisplus.extension.core.ExQueryWrapper;
+import com.baomidou.mybatisplus.extension.core.ExecutableQueryWrapper;
+import com.baomidou.mybatisplus.extension.metadata.ProcedureParamDef;
 
 public interface MysqlBaseMapper<T> extends BaseMapper<T> {
 

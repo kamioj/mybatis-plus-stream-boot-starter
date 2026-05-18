@@ -387,23 +387,27 @@ Map<String, List<User>> usersByRole = userService.stream()
 
 ## 项目结构
 
+> **4.0.0.0 起** 按职责拆分子包；之前用 3.5.x 的请看 [MIGRATION-4.0.md](MIGRATION-4.0.md) 一键迁移 import。
+
 ```
 src/main/java/com/baomidou/mybatisplus/extension/
-├── service/
-│   ├── IMysqlServiceBase.java          # 核心 Service 接口（60+ 方法）
-│   └── impl/
-│       └── MysqlServiceBaseImpl.java   # Service 实现
-├── MysqlBaseMapper.java                # 增强 Mapper 接口
-├── MybatisQueryableStream*.java        # 流式查询 API
-├── MybatisExecutableStream.java        # 更新流 API
-├── JoinLambdaQueryWrapper.java         # 连表条件构造器
-├── GroupLambdaQueryWrapper.java        # 分组条件构造器
-├── GroupFunctionLambdaQueryWrapper.java # 聚合函数构造器
-├── SelectLambdaQueryWrapper.java       # 字段选择构造器
-├── AbstractWhereLambdaQueryWrapper.java # WHERE 条件构造器
-├── LambdaOrderItem.java                # 排序构造器
-└── ...                                 # 其他辅助类
+├── mapper/       MysqlBaseMapper                 # 增强 Mapper 入口（替换 BaseMapper）
+├── service/      IMysqlServiceBase + impl/       # 核心 Service 接口（60+ 方法）
+├── core/         (4 类)                          # 查询执行内核：ExQueryWrapper 等
+├── wrapper/      (26 类)                         # Wrapper 家族：按 "上下文 × 角色" 网格命名
+│   ├── Abstract* / Normal* / Group* / Duplicate* / Sub*  ← 上下文前缀
+│   └── *Where / *Select / *Set / *Function / *Case        ← 角色后缀
+├── stream/       (9 类)                          # 流式 API：MybatisQueryableStream{,1..5,Many}
+├── value/        (7 类)                          # 单列投影值容器：Single*Value, NonValue
+├── metadata/     (6 类)                          # 表/列/类型元数据
+├── support/      (2 类)                          # 工具：StringUtils, LambdaOrderItem
+└── bo/
+    ├── functional/  Function3..15, Consumer3..10  # 多元函数式接口
+    ├── key/         BiMapKey, MapKey3..5          # 多列组合键
+    └── (root)       PageVo, SortVo, BiList        # 通用容器
 ```
+
+每个子包都附带 `package-info.java` 描述其职责，IDE 与 JavaDoc 可直接浏览。
 
 ## 文档
 
