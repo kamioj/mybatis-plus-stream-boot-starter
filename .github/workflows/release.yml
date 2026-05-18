@@ -1,0 +1,116 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '版本号（格式 X.Y.Z.W，例如 3.5.16.1）'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate version format
+        run: |
+          if ! [[ "${{ inputs.version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::version must match X.Y.Z.W"
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check tag does not already exist
+        run: |
+          if git rev-parse "v${{ inputs.version }}" >/dev/null 2>&1; then
+            echo "::error::tag v${{ inputs.version }} already exists; bump and retry"
+            exit 1
+          fi
+
+      - name: Check pom.xml version matches input
+        run: |
+          POM_VERSION=$(grep -m1 '<version>' pom.xml | sed -E 's|.*<version>([^<]+)</version>.*|\1|')
+          if [[ "$POM_VERSION" != "${{ inputs.version }}" ]]; then
+            echo "::error::pom.xml <version> ($POM_VERSION) does not match input (${{ inputs.version }}). Bump pom + READMEs and push to main first."
+            exit 1
+          fi
+
+      - name: Check CHANGELOG has entry for this version
+        run: |
+          if ! grep -q "^## \[${{ inputs.version }}\]" CHANGELOG.md; then
+            echo "::error::CHANGELOG.md must contain '## [${{ inputs.version }}]' section before release"
+            exit 1
+          fi
+
+      - name: Set up JDK + GPG + Maven Central credentials
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: maven
+          server-id: central
+          server-username: MAVEN_CENTRAL_USERNAME
+          server-password: MAVEN_CENTRAL_PASSWORD
+          gpg-private-key: ${{ secrets.MAVEN_GPG_PRIVATE_KEY }}
+          gpg-passphrase: MAVEN_GPG_PASSPHRASE
+
+      - name: Deploy to Maven Central
+        env:
+          MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
+        run: mvn -B -ntp clean deploy
+
+      - name: Create and push tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "v${{ inputs.version }}" -m "Release v${{ inputs.version }}"
+          git push origin "v${{ inputs.version }}"
+
+      - name: Extract changelog section for this version
+        run: |
+          awk -v v="${{ inputs.version }}" '
+            $0 ~ "^## \\[" v "\\]" { found=1; print "## 变更"; next }
+            found && /^## \[/ { exit }
+            found { print }
+          ' CHANGELOG.md > /tmp/release-notes-section.md
+
+          cat > /tmp/release-notes.md <<NOTES
+          $(cat /tmp/release-notes-section.md)
+
+          ## 🚀 安装
+
+          \`\`\`xml
+          <dependency>
+              <groupId>io.github.kamioj</groupId>
+              <artifactId>mybatis-plus-stream-boot-starter</artifactId>
+              <version>${{ inputs.version }}</version>
+          </dependency>
+          \`\`\`
+
+          ## 📖 详细
+
+          - [README](https://github.com/kamioj/mybatis-plus-stream-boot-starter/blob/main/README.md)
+          - [完整文档](https://kamioj.github.io/mybatis-plus-stream-docs/)
+          - [CHANGELOG](https://github.com/kamioj/mybatis-plus-stream-boot-starter/blob/main/CHANGELOG.md)
+          NOTES
+
+          echo "--- Release notes ---"
+          cat /tmp/release-notes.md
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "v${{ inputs.version }}" \
+            --title "v${{ inputs.version }}" \
+            --notes-file /tmp/release-notes.md \
+            --latest \
+            --target main
