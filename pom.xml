@@ -6,7 +6,7 @@
 
     <groupId>io.github.kamioj</groupId>
     <artifactId>mybatis-plus-stream-boot-starter</artifactId>
-    <version>4.0.4.0</version>
+    <version>4.0.5.0</version>
     <packaging>jar</packaging>
 
     <name>MyBatis-Plus Stream Boot Starter</name>
@@ -33,7 +33,7 @@
         <url>https://github.com/kamioj/mybatis-plus-stream-boot-starter</url>
         <connection>scm:git:git://github.com/kamioj/mybatis-plus-stream-boot-starter.git</connection>
         <developerConnection>scm:git:ssh://github.com/kamioj/mybatis-plus-stream-boot-starter.git</developerConnection>
-        <tag>v4.0.4.0</tag>
+        <tag>v4.0.5.0</tag>
     </scm>
 
     <properties>

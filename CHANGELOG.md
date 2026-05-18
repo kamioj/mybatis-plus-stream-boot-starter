@@ -13,6 +13,34 @@
 
 （暂无）
 
+## [4.0.5.0] - 2026-05-19
+
+### Fixed
+
+- **`ExQueryWrapper.setFromTable` 表名 + AS 别名走 dialect**：之前硬编码 `` `table` AS `rename` ``（MySQL 反引号），PG/DM 会报语法错。改 `dialect.quoteIdentifier(...)` 后三方言生成正确的 SQL（PG/DM 用双引号）
+- **`ExQueryWrapper.addLogicDelete` 逻辑删除列引号走 dialect**：之前硬编码 `` `alias`.`column` `` —— PG/DM 用户带 `@TableLogic` 实体的隐式 WHERE 子句会语法错。改 dialect 后修复
+
+### Known limitations（4.0.x 系列已知未完）
+
+剩余 36 处 `StringPool.BACKTICK` 硬编码在以下文件：
+
+| 文件 | 处数 | 影响路径 |
+|---|---|---|
+| `core/LambdaQueryWrapper.java` | 19 | wrapper 内部列名/表别名渲染（SELECT/JOIN/WHERE）|
+| `stream/MybatisQueryableStream.java` | 4 | stream 链式 select 路径 |
+| `core/ExQueryWrapper.java` | 6 | 排序、内部 keySet 约定 |
+| `service/impl/StreamServiceImpl.java` | 2 | service 层辅助 |
+| `support/LambdaOrderItem.java` | 1 | order item |
+| `metadata/ColumnInfo.java` | 1 | 元数据 |
+| `stream/MybatisExecutableStream.java` | 1 | 列名剥引号（不需改）|
+
+这些路径在 corner case（复杂 JOIN + ORDER BY、wrapper 内部约定 keySet）可能让 PG/DM 触发语法错。**MySQL 主流程不受影响**。
+
+修复策略需要重新设计：把 `BACKTICK` 当作 wrapper 内部 token（不暴露到最终 SQL），最后一刻渲染时统一替换为 `dialect.quoteIdentifier`。这是 4.1 单独 spec 工程，本 patch 不做。
+
+**当前 4.0.5 后 PG/DM 用户能跑通**：所有 `saveBatchWithoutId / saveDuplicate / saveIgnore / saveReplace`、基础 `list / page / stream / forUpdate / groupConcat / 行锁细粒度 / 逻辑删除`。
+**仍可能踩坑**：复杂 JOIN + ORDER BY、自定义 selectAll、深度嵌套子查询。
+
 ## [4.0.4.0] - 2026-05-19
 
 ### Fixed
@@ -267,7 +295,8 @@ extension/
 
 ---
 
-[Unreleased]: https://github.com/kamioj/mybatis-plus-stream-boot-starter/compare/v4.0.4.0...HEAD
+[Unreleased]: https://github.com/kamioj/mybatis-plus-stream-boot-starter/compare/v4.0.5.0...HEAD
+[4.0.5.0]: https://github.com/kamioj/mybatis-plus-stream-boot-starter/compare/v4.0.4.0...v4.0.5.0
 [4.0.4.0]: https://github.com/kamioj/mybatis-plus-stream-boot-starter/compare/v4.0.3.0...v4.0.4.0
 [4.0.3.0]: https://github.com/kamioj/mybatis-plus-stream-boot-starter/compare/v4.0.2.0...v4.0.3.0
 [4.0.2.0]: https://github.com/kamioj/mybatis-plus-stream-boot-starter/compare/v4.0.1.0...v4.0.2.0
