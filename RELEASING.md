@@ -11,9 +11,10 @@
 | `MAVEN_CENTRAL_USERNAME` | Sonatype Central User Token 的 username | https://central.sonatype.com → 头像 → View Account → Generate User Token |
 | `MAVEN_CENTRAL_PASSWORD` | Sonatype Central User Token 的 password | 同上，生成时一并显示 |
 | `MAVEN_GPG_PRIVATE_KEY` | ASCII-armored GPG 私钥全文 | `gpg --armor --export-secret-keys <KEY_ID>`（含 `-----BEGIN PGP PRIVATE KEY BLOCK-----` 头尾） |
-| `MAVEN_GPG_PASSPHRASE` | GPG 私钥密码（如果有） | 你设的密码；无密码留空 |
 
 > 这些 Secret 只需要配一次。GPG key 应该是已经发布到 keyserver 的那把（Maven Central 要求公钥能被验证）。
+>
+> **如果 GPG key 有 passphrase**：再加一个 `MAVEN_GPG_PASSPHRASE` secret，并在 `.github/workflows/release.yml` 的 `setup-java` 加 `gpg-passphrase: MAVEN_GPG_PASSPHRASE`、`mvn deploy` 步骤的环境变量加 `MAVEN_GPG_PASSPHRASE: ${{ secrets.MAVEN_GPG_PASSPHRASE }}`，并把 `-Dgpg.passphrase=` 去掉。本项目当前 key 无 passphrase。
 
 ## 每次发版
 
