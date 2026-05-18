@@ -13,6 +13,37 @@
 
 （暂无）
 
+## [4.0.2.0] - 2026-05-19
+
+### Added
+
+**批量写入路径完整接管 dialect**（MySQL + PostgreSQL）：
+
+- `WriteMode` 枚举（INSERT / DUPLICATE / IGNORE / REPLACE）
+- `SqlDialect.insertPrefix(WriteMode)` + `SqlDialect.conflictClause(WriteMode, setters, pk, allColumns)`
+- `ExecutableQueryWrapper` 加 `writeMode` 字段 + `getSqlInsertPrefix()` / `getSqlConflictClause()` 方言敏感 getter
+- `StreamBaseMapper` 三个 INSERT 方法统一使用 `${ew.sqlInsertPrefix}` + `${ew.sqlConflictClause}` 占位
+
+**PostgreSQL 三种写入完整可用**：
+
+| API | PG 生成的 SQL |
+|---|---|
+| `saveDuplicate` | `INSERT INTO ... ON CONFLICT (pk) DO UPDATE SET col = ...` |
+| `saveIgnore` | `INSERT INTO ... ON CONFLICT DO NOTHING` |
+| `saveReplace` | `INSERT INTO ... ON CONFLICT (pk) DO UPDATE SET 全列=EXCLUDED.全列` |
+
+`saveDuplicate` / `saveReplace` 在 PG 上**要求实体声明 `@TableId` 主键**（ON CONFLICT 必需），未声明 fail-fast 抛 `IllegalStateException`。
+
+### Changed
+
+- 删除 `SqlDialect.supportsUpsert/supportsInsertIgnore/supportsInsertReplace` 三个 hint 方法 —— 改由"调用时通过 dialect 渲染"决定能力
+- `ExecutableQueryWrapper.getSqlDuplicateSet()` 标记 `@Deprecated(forRemoval = true, since = "4.0.2")`；内部委托 `getSqlConflictClause()`，4.1 删除
+
+### Known limitations
+
+- **达梦 DM 三种写入路径暂未实现**：`DamengDialect.insertPrefix(DUPLICATE/IGNORE/REPLACE)` 与 `conflictClause(DUPLICATE/IGNORE/REPLACE)` 抛 `UnsupportedOperationException` 并给出清晰错误信息引导用户。规划 4.0.3 通过 `MERGE INTO` + `@InsertProvider` 完整实现（DM 语句结构与 INSERT 完全不同，不能套统一模板）
+- DM 用户 4.0.2 仅可用查询路径 + `saveBatchWithoutId`（纯 INSERT）
+
 ## [4.0.1.0] - 2026-05-18
 
 ### Added
@@ -177,7 +208,8 @@ extension/
 
 ---
 
-[Unreleased]: https://github.com/kamioj/mybatis-plus-stream-boot-starter/compare/v4.0.1.0...HEAD
+[Unreleased]: https://github.com/kamioj/mybatis-plus-stream-boot-starter/compare/v4.0.2.0...HEAD
+[4.0.2.0]: https://github.com/kamioj/mybatis-plus-stream-boot-starter/compare/v4.0.1.0...v4.0.2.0
 [4.0.1.0]: https://github.com/kamioj/mybatis-plus-stream-boot-starter/compare/v4.0.0.0...v4.0.1.0
 [4.0.0.0]: https://github.com/kamioj/mybatis-plus-stream-boot-starter/compare/v3.5.16.0...v4.0.0.0
 [3.5.16.0]: https://github.com/kamioj/mybatis-plus-stream-boot-starter/compare/v3.5.9.0...v3.5.16.0

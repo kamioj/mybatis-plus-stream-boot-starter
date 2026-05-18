@@ -2,7 +2,13 @@ package com.baomidou.mybatisplus.extension.dialect.impl;
 
 import com.baomidou.mybatisplus.extension.dialect.DbType;
 import com.baomidou.mybatisplus.extension.dialect.LockMode;
+import com.baomidou.mybatisplus.extension.dialect.WriteMode;
+import com.baomidou.mybatisplus.extension.metadata.ColumnInfo;
 import com.baomidou.mybatisplus.extension.metadata.SqlDataType;
+
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * PostgreSQL 方言（验证基线：PG 17 LTS）。
@@ -97,8 +103,55 @@ public class PostgreSqlDialect extends MySqlDialect {
     }
 
     @Override
-    public boolean supportsInsertReplace() {
-        // PG 无 REPLACE INTO 原生语法；用户需用 ON CONFLICT DO UPDATE 替代
-        return false;
+    public String insertPrefix(WriteMode mode) {
+        // PG 三种 mode 都用 INSERT INTO，差异在末尾子句
+        return "INSERT INTO";
+    }
+
+    @Override
+    public String conflictClause(WriteMode mode, List<String> setters, ColumnInfo pkColumn, String[] allColumns) {
+        return switch (mode) {
+            case INSERT -> "";
+            case DUPLICATE -> {
+                if (setters == null || setters.isEmpty()) yield "";
+                if (pkColumn == null) {
+                    throw new IllegalStateException(
+                        "PostgreSQL saveDuplicate 需要实体声明 @TableId 主键（ON CONFLICT 子句必需）。");
+                }
+                String pk = quoteIdentifier(pkColumn.getColumnName());
+                yield "\nON CONFLICT (" + pk + ") DO UPDATE SET\n" + String.join(",\n", setters);
+            }
+            case IGNORE ->
+                // PG 等价 INSERT IGNORE：行已存在时不动
+                "\nON CONFLICT DO NOTHING";
+            case REPLACE -> {
+                if (pkColumn == null) {
+                    throw new IllegalStateException(
+                        "PostgreSQL saveReplace 需要实体声明 @TableId 主键（ON CONFLICT 子句必需）。");
+                }
+                if (allColumns == null || allColumns.length == 0) {
+                    yield "\nON CONFLICT DO NOTHING";
+                }
+                String pk = quoteIdentifier(pkColumn.getColumnName());
+                StringBuilder sb = new StringBuilder("\nON CONFLICT (").append(pk).append(") DO UPDATE SET\n");
+                boolean first = true;
+                for (String col : allColumns) {
+                    // allColumns 元素可能已带 dialect 引号；统一抽出"裸列名"再加 EXCLUDED.<裸列>
+                    String bare = stripQuotes(col);
+                    String quoted = quoteIdentifier(bare);
+                    if (!first) sb.append(",\n");
+                    sb.append(quoted).append(" = EXCLUDED.").append(quoted);
+                    first = false;
+                }
+                yield sb.toString();
+            }
+        };
+    }
+
+    private static final Pattern UNQUOTE = Pattern.compile("^[\"`]?(.*?)[\"`]?$");
+
+    private static String stripQuotes(String identifier) {
+        Matcher m = UNQUOTE.matcher(identifier);
+        return m.matches() ? m.group(1) : identifier;
     }
 }

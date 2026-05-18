@@ -71,6 +71,8 @@ public class MybatisExecutableStream<T> extends MybatisStream<T, T, ExecutableQu
     public MybatisExecutableStream<T> duplicate(Consumer<DuplicateSetLambdaQueryWrapper<T>> duplicateSetter) {
         DuplicateSetLambdaQueryWrapper<T> setLambda = new DuplicateSetLambdaQueryWrapper<>(queryWrapper, entityClass);
         duplicateSetter.accept(setLambda);
+        // 4.0.2: 标记本次写入为 DUPLICATE 模式，让 dialect 生成 ON DUPLICATE KEY UPDATE / ON CONFLICT DO UPDATE
+        queryWrapper.setWriteMode(com.baomidou.mybatisplus.extension.dialect.WriteMode.DUPLICATE);
         return typedThis;
     }
 
@@ -185,6 +187,8 @@ public class MybatisExecutableStream<T> extends MybatisStream<T, T, ExecutableQu
         if (entities == null || entities.size() == 0) {
             return 0;
         }
+        // 4.0.2: 标记本次写入为 IGNORE 模式，让 dialect 生成 INSERT IGNORE / ON CONFLICT DO NOTHING
+        queryWrapper.setWriteMode(com.baomidou.mybatisplus.extension.dialect.WriteMode.IGNORE);
 
         // 获取表信息
         Map<String, String> columnMap = new LinkedHashMap<>();
@@ -255,6 +259,8 @@ public class MybatisExecutableStream<T> extends MybatisStream<T, T, ExecutableQu
         if (entities == null || entities.size() == 0) {
             return 0;
         }
+        // 4.0.2: 标记本次写入为 REPLACE 模式，让 dialect 生成 REPLACE INTO / ON CONFLICT DO UPDATE 全列
+        queryWrapper.setWriteMode(com.baomidou.mybatisplus.extension.dialect.WriteMode.REPLACE);
 
         // 获取表信息
         Map<String, String> columnMap = new LinkedHashMap<>();
