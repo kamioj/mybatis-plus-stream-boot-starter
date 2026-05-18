@@ -11,7 +11,11 @@
 
 ## [Unreleased]
 
-### ⚠️ BREAKING CHANGES — 4.0.0.0
+（暂无）
+
+## [4.0.0.0] - 2026-05-18
+
+### ⚠️ BREAKING CHANGES
 
 本版本是一次大重构，三大类 breaking change。**首次升级建议读 [MIGRATION-4.0.md](MIGRATION-4.0.md) 一键迁移**。
 
@@ -155,6 +159,7 @@ extension/
 
 ---
 
-[Unreleased]: https://github.com/kamioj/mybatis-plus-stream-boot-starter/compare/v3.5.16.0...HEAD
+[Unreleased]: https://github.com/kamioj/mybatis-plus-stream-boot-starter/compare/v4.0.0.0...HEAD
+[4.0.0.0]: https://github.com/kamioj/mybatis-plus-stream-boot-starter/compare/v3.5.16.0...v4.0.0.0
 [3.5.16.0]: https://github.com/kamioj/mybatis-plus-stream-boot-starter/compare/v3.5.9.0...v3.5.16.0
 [3.5.9.0]: https://github.com/kamioj/mybatis-plus-stream-boot-starter/releases/tag/v3.5.9.0
