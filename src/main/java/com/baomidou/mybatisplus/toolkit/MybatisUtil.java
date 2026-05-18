@@ -11,10 +11,6 @@ import com.baomidou.mybatisplus.core.metadata.OrderItem;
 import com.baomidou.mybatisplus.core.toolkit.CollectionUtils;
 import com.baomidou.mybatisplus.core.toolkit.GlobalConfigUtils;
 import com.baomidou.mybatisplus.core.toolkit.StringUtils;
-import com.baomidou.mybatisplus.extension.ColumnInfo;
-import com.baomidou.mybatisplus.extension.Converter;
-import com.baomidou.mybatisplus.extension.LambdaOrderItem;
-import com.baomidou.mybatisplus.extension.TableInfo;
 import com.baomidou.mybatisplus.extension.bo.PageVo;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 
@@ -26,9 +22,22 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import com.baomidou.mybatisplus.extension.core.Converter;
+import com.baomidou.mybatisplus.extension.metadata.ColumnInfo;
+import com.baomidou.mybatisplus.extension.metadata.TableInfo;
+import com.baomidou.mybatisplus.extension.support.LambdaOrderItem;
 
 public final class MybatisUtil {
-    private final static Map<Class<?>, TableInfo<?>> TableCacheMap = new HashMap<>();
+    /**
+     * 实体类 → TableInfo 缓存。4.0 起从 {@code synchronized HashMap} 升级为 {@link ClassValue}，
+     * 无锁、线程局部高速缓存；命中率 100%（每个 Entity 类的 TableInfo 只构造一次）。
+     */
+    private static final ClassValue<TableInfo<?>> TABLE_INFO_CACHE = new ClassValue<>() {
+        @Override
+        protected TableInfo<?> computeValue(Class<?> clazz) {
+            return buildTableInfo(clazz);
+        }
+    };
 
     private static GlobalConfig.DbConfig defaultDbConfig = null;
 
@@ -71,25 +80,77 @@ public final class MybatisUtil {
     }
 
     @SuppressWarnings("unchecked")
-    public synchronized static <T> TableInfo<T> getTableInfo(Class<T> clazz) {
-        if (TableCacheMap.get(clazz) != null) {
-            return (TableInfo<T>) TableCacheMap.get(clazz);
-        }
+    public static <T> TableInfo<T> getTableInfo(Class<T> clazz) {
+        return (TableInfo<T>) TABLE_INFO_CACHE.get(clazz);
+    }
 
+    /**
+     * 解析 SFunction 对应的 Java 属性名（如 {@code User::getId} → {@code "id"}）。
+     * <p>4.0 起，本方法是 SQL-aware terminal operations（toMap / toSet / groupingBy / toMapXxx）
+     * 实现 SQL 下推的核心 helper。
+     */
+    public static String propertyOf(com.baomidou.mybatisplus.core.toolkit.support.SFunction<?, ?> col) {
+        java.lang.invoke.SerializedLambda lambda = ReflectUtils.getLambda(col);
+        if (lambda == null) {
+            throw new IllegalStateException("Not a serializable lambda. Use SFunction (e.g. User::getId).");
+        }
+        return ReflectUtils.getMethodPropertyName(lambda.getImplMethodName());
+    }
+
+    /**
+     * 解析 SFunction 对应的数据库列名（含方言引号，如 MySQL 的 {@code `id`}）。
+     * <p>查 {@link TableInfo} 的 {@code @TableField} 映射；若实体未声明则按属性名兜底。
+     */
+    public static String columnOf(com.baomidou.mybatisplus.core.toolkit.support.SFunction<?, ?> col) {
+        java.lang.invoke.SerializedLambda lambda = ReflectUtils.getLambda(col);
+        if (lambda == null) {
+            throw new IllegalStateException("Not a serializable lambda. Use SFunction (e.g. User::getId).");
+        }
+        String property = ReflectUtils.getMethodPropertyName(lambda.getImplMethodName());
+        String implClassName = lambda.getImplClass().replace('/', '.');
+        com.baomidou.mybatisplus.extension.dialect.SqlDialect dialect =
+            com.baomidou.mybatisplus.extension.dialect.DialectRegistry.current();
+        try {
+            Class<?> entityClass = Class.forName(implClassName);
+            TableInfo<?> tableInfo = getTableInfo(entityClass);
+            for (ColumnInfo ci : tableInfo.getColumns()) {
+                if (ci.getPropertyName().equalsIgnoreCase(property)) {
+                    return dialect.quoteIdentifier(ci.getColumnName());
+                }
+            }
+        } catch (ClassNotFoundException ignored) {
+            // fall through to property-name fallback
+        }
+        return dialect.quoteIdentifier(property);
+    }
+
+    /**
+     * 通过属性名读取实体的属性值。供 groupingBy 内存分组使用。
+     */
+    @SuppressWarnings("unchecked")
+    public static <V> V readProperty(Object entity, String propertyName) {
+        try {
+            return (V) ReflectUtils.getPropertyValue(entity, propertyName);
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException("Cannot read property '" + propertyName
+                + "' from " + entity.getClass().getName(), e);
+        }
+    }
+
+    private static <T> TableInfo<T> buildTableInfo(Class<T> clazz) {
         TableInfo<T> table = new TableInfo<>();
         table.setEntityClass(clazz);
         table.setTableName(ReflectUtils.getAnnotation(clazz, TableName.class));
         Field[] fields = ReflectUtils.getDeclaredFields(clazz, Modifier.PUBLIC | Modifier.PROTECTED | Modifier.PRIVATE);
         List<ColumnInfo> columns = new ArrayList<>();
-        ColumnInfo column;
         for (Field field : fields) {
             TableField tableField = field.getAnnotation(TableField.class);
             if (tableField != null && !tableField.exist()) {
                 continue;
             }
-            column = new ColumnInfo();
+            ColumnInfo column = new ColumnInfo();
             column.setField(field);
-            column.setTableField(field.getAnnotation(TableField.class));
+            column.setTableField(tableField);
             column.setKey(field.getAnnotation(TableId.class) != null);
             TableLogic tableLogicAnnotation = field.getAnnotation(TableLogic.class);
             column.setLogicDelete(tableLogicAnnotation != null);
@@ -105,8 +166,6 @@ public final class MybatisUtil {
             }
         }
         table.setColumns(columns);
-
-        TableCacheMap.put(clazz, table);
         return table;
     }
 
