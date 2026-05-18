@@ -3,6 +3,7 @@ package com.baomidou.mybatisplus.extension.mapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Constants;
+import com.baomidou.mybatisplus.extension.dialect.MergeIntoSqlProvider;
 import org.apache.ibatis.annotations.*;
 import org.apache.ibatis.mapping.StatementType;
 
@@ -64,6 +65,15 @@ public interface StreamBaseMapper<T> extends BaseMapper<T> {
             "${ew.sqlConflictClause}" +
             "</script>")
     int insertReplace(@Param("columns") String[] columns, @Param("values") Object[][] values, @Param(Constants.WRAPPER) ExecutableQueryWrapper<?> queryWrapper);
+
+    /**
+     * 4.0.3 起：DM 等不能用"INSERT + 末尾子句"模板的方言走这条 MERGE INTO 路径。
+     * 由当前 {@code SqlDialect.buildMergeIntoScript} 通过 {@code @InsertProvider} 生成完整 SQL。
+     * {@link com.baomidou.mybatisplus.extension.stream.MybatisExecutableStream} 根据
+     * {@code SqlDialect.useMergeInto(WriteMode)} 决定是否走本方法。
+     */
+    @InsertProvider(type = MergeIntoSqlProvider.class, method = "buildSql")
+    int mergeInto(@Param("columns") String[] columns, @Param("values") Object[][] values, @Param(Constants.WRAPPER) ExecutableQueryWrapper<?> queryWrapper);
 
     @Update("<script>" +
             "UPDATE ${ew.sqlFrom}\n" +

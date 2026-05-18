@@ -123,4 +123,26 @@ public interface SqlDialect {
      * @param allColumns 表的所有列（{@link WriteMode#REPLACE} 全列覆盖语义所需）
      */
     String conflictClause(WriteMode mode, List<String> setters, ColumnInfo pkColumn, String[] allColumns);
+
+    /* ============== MERGE INTO 路径（4.0.3 引入，DM 专用）============== */
+
+    /**
+     * 是否使用 {@code MERGE INTO} 完整不同的语句结构（非 "INSERT + 末尾子句" 风格）。
+     * 默认返回 false（MySQL / PG 都用 INSERT 风格）；DM 在 DUPLICATE/IGNORE/REPLACE 三种模式下返回 true。
+     */
+    default boolean useMergeInto(WriteMode mode) {
+        return false;
+    }
+
+    /**
+     * 当 {@link #useMergeInto(WriteMode)} 返回 true 时，生成完整的 {@code <script>...</script>} 字符串
+     * 供 {@code @InsertProvider} 渲染。
+     *
+     * @param columns      列名数组（已带方言引号）
+     * @param wrapper      执行 wrapper（含表名、PK、setters、writeMode 等元数据）
+     * @return MyBatis {@code <script>} 形式的 SQL 字符串
+     */
+    default String buildMergeIntoScript(String[] columns, com.baomidou.mybatisplus.extension.core.ExecutableQueryWrapper<?> wrapper) {
+        throw new UnsupportedOperationException("Dialect " + dbType() + " 不需要 MERGE INTO 路径");
+    }
 }
