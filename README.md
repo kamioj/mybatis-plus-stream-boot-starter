@@ -42,14 +42,14 @@ MyBatis-Plus Stream 是一个基于 [MyBatis-Plus](https://baomidou.com) 的增�
 <dependency>
     <groupId>io.github.kamioj</groupId>
     <artifactId>mybatis-plus-stream-boot-starter</artifactId>
-    <version>4.0.0.0</version>
+    <version>4.0.1.0</version>
 </dependency>
 ```
 
 ### Gradle
 
 ```groovy
-implementation 'io.github.kamioj:mybatis-plus-stream-boot-starter:4.0.0.0'
+implementation 'io.github.kamioj:mybatis-plus-stream-boot-starter:4.0.1.0'
 ```
 
 > **环境要求**：JDK 17+、Spring Boot 3.x、MyBatis-Plus 3.5.16（自动引入）
@@ -395,7 +395,7 @@ src/main/java/com/baomidou/mybatisplus/extension/
 ├── service/      IStreamService + impl/     # 核心 Service 接口（60+ 方法）
 ├── dialect/      SqlDialect SPI             # 4.0 起：方言扩展（MySQL/PG/DM/自定义）
 │   ├── SqlDialect / DbType / LockMode / DialectRegistry
-│   └── impl/MySqlDialect                    # 默认实现（PostgreSQL/DM 规划 4.0.1 内置）
+│   └── impl/{MySql,PostgreSql,Dameng}Dialect # 4.0.1 起内置三种主流方言
 ├── core/         (4 类)                     # 查询执行内核：ExQueryWrapper 等
 ├── wrapper/      (26 类)                    # Wrapper 家族：按 "上下文 × 角色" 网格命名
 │   ├── Abstract* / Normal* / Group* / Duplicate* / Sub*  ← 上下文前缀

@@ -13,6 +13,24 @@
 
 （暂无）
 
+## [4.0.1.0] - 2026-05-18
+
+### Added
+
+- **`PostgreSqlDialect`**（PG 17 LTS 验证）：分页 `LIMIT n OFFSET m` / 字符串 `||` 拼接 / `STRING_AGG` 聚合 / 双引号标识符 / `FOR UPDATE NOWAIT|SKIP LOCKED` / 类型映射（`SIGNED→BIGINT` / `DATETIME→TIMESTAMP` / `BINARY→BYTEA`）
+- **`DamengDialect`**（DM 8 验证，Oracle 兼容模式优先）：分页 `LIMIT n OFFSET m` / 字符串 `||` 拼接 / `STRING_AGG` 聚合 / 双引号标识符 / `FOR UPDATE NOWAIT|WAIT n` / 类型映射（`CHAR→VARCHAR` / `BINARY→BLOB`）
+- 在 `META-INF/services/com.baomidou.mybatisplus.extension.dialect.SqlDialect` 注册三个内置方言，启动时通过 ServiceLoader 自动加载。用户切换方式：
+  ```java
+  DialectRegistry.use(DbType.POSTGRESQL);  // 或 DbType.DAMENG
+  ```
+
+### Notes
+
+- PG 与 DM 都**不支持** `REPLACE INTO`（`supportsInsertReplace() == false`）；调用 `saveReplace` 会 fail-fast
+- DM **不支持** `INSERT IGNORE`（`supportsInsertIgnore() == false`）；调用 `saveIgnore` 会 fail-fast
+- DM 是唯一支持 `FOR UPDATE WAIT n` 的内置方言（来自 Oracle 兼容性）
+- 三方言均不影响 MySQL 默认行为，4.0.0.0 → 4.0.1.0 是 **0 breaking 增量升级**
+
 ## [4.0.0.0] - 2026-05-18
 
 ### ⚠️ BREAKING CHANGES
@@ -159,7 +177,8 @@ extension/
 
 ---
 
-[Unreleased]: https://github.com/kamioj/mybatis-plus-stream-boot-starter/compare/v4.0.0.0...HEAD
+[Unreleased]: https://github.com/kamioj/mybatis-plus-stream-boot-starter/compare/v4.0.1.0...HEAD
+[4.0.1.0]: https://github.com/kamioj/mybatis-plus-stream-boot-starter/compare/v4.0.0.0...v4.0.1.0
 [4.0.0.0]: https://github.com/kamioj/mybatis-plus-stream-boot-starter/compare/v3.5.16.0...v4.0.0.0
 [3.5.16.0]: https://github.com/kamioj/mybatis-plus-stream-boot-starter/compare/v3.5.9.0...v3.5.16.0
 [3.5.9.0]: https://github.com/kamioj/mybatis-plus-stream-boot-starter/releases/tag/v3.5.9.0
