@@ -5,10 +5,8 @@ import com.baomidou.mybatisplus.extension.dialect.DialectRegistry;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -34,12 +32,19 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 @SpringBootTest(classes = ItApplication.class)
 @Testcontainers
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class PostgreSqlIntegrationTest {
 
     @Container
-    @ServiceConnection
     static final PostgreSQLContainer<?> PG = new PostgreSQLContainer<>("postgres:17-alpine");
+
+    /** 容器启动后再 lazy 解析 datasource URL/credentials；避开 @ServiceConnection 与 SpringContext 初始化时机问题 */
+    @DynamicPropertySource
+    static void registerDataSource(DynamicPropertyRegistry registry) {
+        registry.add("spring.datasource.url", PG::getJdbcUrl);
+        registry.add("spring.datasource.username", PG::getUsername);
+        registry.add("spring.datasource.password", PG::getPassword);
+        registry.add("spring.datasource.driver-class-name", () -> "org.postgresql.Driver");
+    }
 
     @Autowired
     DataSource dataSource;
@@ -48,7 +53,7 @@ class PostgreSqlIntegrationTest {
     UserService userService;
 
     @BeforeAll
-    void switchDialect() {
+    static void switchDialect() {
         DialectRegistry.use(DbType.POSTGRESQL);
     }
 
