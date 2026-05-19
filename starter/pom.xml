@@ -7,7 +7,7 @@
     <parent>
         <groupId>io.github.kamioj</groupId>
         <artifactId>mybatis-plus-stream-parent</artifactId>
-        <version>4.1.1.1</version>
+        <version>4.1.1.2</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
@@ -38,7 +38,7 @@
         <url>https://github.com/kamioj/mybatis-plus-stream-boot-starter</url>
         <connection>scm:git:git://github.com/kamioj/mybatis-plus-stream-boot-starter.git</connection>
         <developerConnection>scm:git:ssh://github.com/kamioj/mybatis-plus-stream-boot-starter.git</developerConnection>
-        <tag>v4.1.1.1</tag>
+        <tag>v4.1.1.2</tag>
     </scm>
 
     <dependencies>
@@ -69,6 +69,32 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.2.5</version>
+            </plugin>
+
+            <!-- 扁平化 pom：把 parent 继承的 groupId/version + dependencyManagement 解析后的具体 dep version
+                 展开成 effective pom 写入 .flattened-pom.xml，install/deploy 时上传扁平 pom。
+                 没有这一步，Sonatype Central 验证 bundle 时报 "Failed to get coordinates from pom file"
+                 + "Dependency version information is missing"（multi-module 标准坑）。 -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>flatten-maven-plugin</artifactId>
+                <version>1.6.0</version>
+                <configuration>
+                    <updatePomFile>true</updatePomFile>
+                    <flattenMode>ossrh</flattenMode>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>flatten</id>
+                        <phase>process-resources</phase>
+                        <goals><goal>flatten</goal></goals>
+                    </execution>
+                    <execution>
+                        <id>flatten.clean</id>
+                        <phase>clean</phase>
+                        <goals><goal>clean</goal></goals>
+                    </execution>
+                </executions>
             </plugin>
 
             <!-- 生成 sources.jar -->
