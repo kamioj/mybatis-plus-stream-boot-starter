@@ -344,12 +344,33 @@ public class ExQueryWrapper<T> extends QueryWrapper<T> {
     }
 
     public String getSqlFrom() {
-        return this.joinTables.size() > 0 ? this.fromTable + "\n" + String.join("\n", this.joinTables) : this.fromTable;
+        // 4.1: 通过 DialectQuoteTranslator 适配器把 wrapper 内部的 `name` token 翻译为方言引号
+        // MySQL 方言下是 no-op；PG/DM 下转为 "name"
+        String raw = this.joinTables.size() > 0 ? this.fromTable + "\n" + String.join("\n", this.joinTables) : this.fromTable;
+        return com.baomidou.mybatisplus.extension.dialect.DialectQuoteTranslator.translate(raw);
     }
 
     public String getCustomSqlFromSegment() {
         String sqlFrom = getSqlFrom();
         return StringUtils.isEmpty(sqlFrom) ? "" : "FROM\n" + sqlFrom;
+    }
+
+    /**
+     * 4.1: override 父类 getSqlSelect 走 dialect quote translator。
+     * 父类返回的 SELECT 子句包含 BACKTICK 包装的列名，本方法翻译为当前方言引号。
+     */
+    @Override
+    public String getSqlSelect() {
+        return com.baomidou.mybatisplus.extension.dialect.DialectQuoteTranslator.translate(super.getSqlSelect());
+    }
+
+    /**
+     * 4.1: override 父类 getCustomSqlSegment 走 dialect quote translator。
+     * 父类返回的 WHERE/GROUP BY/HAVING/ORDER BY 等子句中的列名翻译为方言引号。
+     */
+    @Override
+    public String getCustomSqlSegment() {
+        return com.baomidou.mybatisplus.extension.dialect.DialectQuoteTranslator.translate(super.getCustomSqlSegment());
     }
 
     public long getLimit() {
