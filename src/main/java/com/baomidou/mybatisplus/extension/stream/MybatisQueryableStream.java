@@ -159,7 +159,7 @@ public abstract class MybatisQueryableStream<T, R, Children extends MybatisQuery
     protected Stream<R> toStream() {
         String sqlSelect = queryWrapper.getSqlSelect();
         if (renameClass.length == 1 && renameClass[0].equals(Object.class)) {
-            sqlSelect = sqlSelect.split(",(?![^()]*+\\))")[0].split("(?i) as ")[0] + " AS V";
+            sqlSelect = sqlSelect.split(",(?![^()]*+\\))")[0].split("(?i) as ")[0] + " AS mps_v";
         }
         if (queryWrapper.isDistinct()) {
             sqlSelect = "DISTINCT " + sqlSelect.trim().replaceAll("^(?i)distinct\\s+", "");
@@ -207,7 +207,7 @@ public abstract class MybatisQueryableStream<T, R, Children extends MybatisQuery
 //        Page<Map<String, Object>> p = new Page<>(page.getCurrent(), page.getSize());
 //        String sqlSelect = queryWrapper.getSqlSelect();
 //        if (renameClass == null) {
-//            sqlSelect = sqlSelect.split(",")[0].split("(?i) as ")[0] + " AS V";
+//            sqlSelect = sqlSelect.split(",")[0].split("(?i) as ")[0] + " AS mps_v";
 //        }
 //        if (queryWrapper.isDistinct()) {
 //            sqlSelect = "DISTINCT " + sqlSelect.trim().replaceAll("^(?i)distinct\\s+", "");
@@ -329,9 +329,9 @@ public abstract class MybatisQueryableStream<T, R, Children extends MybatisQuery
         java.util.List<Map<String, Object>> rows = executeSelectOneColumn(col);
         java.util.LinkedHashSet<K> result = new java.util.LinkedHashSet<>();
         for (Map<String, Object> row : rows) {
-            if (row.isEmpty()) continue;
+            // 4.1.1: 通过 alias 取值（Map iterator 顺序在 PG 等 JDBC 上不可靠）
             @SuppressWarnings("unchecked")
-            K v = (K) row.values().iterator().next();
+            K v = (K) row.get("mps_k");
             if (v != null) result.add(v);
         }
         return result;
@@ -355,14 +355,11 @@ public abstract class MybatisQueryableStream<T, R, Children extends MybatisQuery
         java.util.List<Map<String, Object>> rows = executeSelectTwoColumns(keyCol, valCol);
         java.util.LinkedHashMap<K, V> result = new java.util.LinkedHashMap<>();
         for (Map<String, Object> row : rows) {
-            java.util.Iterator<Object> it = row.values().iterator();
-            if (!it.hasNext()) continue;
             @SuppressWarnings("unchecked")
-            K k = (K) it.next();
-            if (!it.hasNext()) continue;
+            K k = (K) row.get("mps_k");
             @SuppressWarnings("unchecked")
-            V v = (V) it.next();
-            result.merge(k, v, merger);
+            V v = (V) row.get("mps_v");
+            if (k != null) result.merge(k, v, merger);
         }
         return result;
     }
@@ -443,7 +440,7 @@ public abstract class MybatisQueryableStream<T, R, Children extends MybatisQuery
     /** 单列投影：SELECT col FROM ... */
     private <K> java.util.List<Map<String, Object>> executeSelectOneColumn(SFunction<T, K> col) {
         String colName = MybatisUtil.columnOf(col);
-        queryWrapper.select(colName + " AS K");
+        queryWrapper.select(colName + " AS mps_k");
         java.util.List<Map<String, Object>> rows = baseMapper.list(queryWrapper);
         queryWrapper.reset();
         return rows;
@@ -454,7 +451,7 @@ public abstract class MybatisQueryableStream<T, R, Children extends MybatisQuery
             SFunction<T, K> keyCol, SFunction<T, V> valCol) {
         String k = MybatisUtil.columnOf(keyCol);
         String v = MybatisUtil.columnOf(valCol);
-        queryWrapper.select(k + " AS K, " + v + " AS V");
+        queryWrapper.select(k + " AS mps_k, " + v + " AS mps_v");
         java.util.List<Map<String, Object>> rows = baseMapper.list(queryWrapper);
         queryWrapper.reset();
         return rows;
@@ -464,18 +461,16 @@ public abstract class MybatisQueryableStream<T, R, Children extends MybatisQuery
     private <K, V> Map<K, V> executeGroupBy(SFunction<T, K> keyCol, String aggExpr,
                                             Class<?> rawType, java.util.function.Function<Object, V> caster) {
         String k = MybatisUtil.columnOf(keyCol);
-        queryWrapper.select(k + " AS K, " + aggExpr + " AS V");
+        queryWrapper.select(k + " AS mps_k, " + aggExpr + " AS mps_v");
         queryWrapper.groupBy(k);
         java.util.List<Map<String, Object>> rows = baseMapper.list(queryWrapper);
         queryWrapper.reset();
         java.util.LinkedHashMap<K, V> result = new java.util.LinkedHashMap<>();
         for (Map<String, Object> row : rows) {
-            java.util.Iterator<Object> it = row.values().iterator();
-            if (!it.hasNext()) continue;
+            // 4.1.1: 显式按 alias 取值，避免 Map iterator 顺序不可靠导致 key/value 错位
             @SuppressWarnings("unchecked")
-            K key = (K) it.next();
-            if (!it.hasNext()) continue;
-            Object raw = it.next();
+            K key = (K) row.get("mps_k");
+            Object raw = row.get("mps_v");
             if (raw == null) continue;
             if (!rawType.isInstance(raw)) {
                 throw new IllegalStateException("Unexpected aggregate type: " + raw.getClass());
