@@ -6,7 +6,7 @@
 
     <groupId>io.github.kamioj</groupId>
     <artifactId>mybatis-plus-stream-boot-starter</artifactId>
-    <version>4.0.5.0</version>
+    <version>4.1.0.0</version>
     <packaging>jar</packaging>
 
     <name>MyBatis-Plus Stream Boot Starter</name>
@@ -33,7 +33,7 @@
         <url>https://github.com/kamioj/mybatis-plus-stream-boot-starter</url>
         <connection>scm:git:git://github.com/kamioj/mybatis-plus-stream-boot-starter.git</connection>
         <developerConnection>scm:git:ssh://github.com/kamioj/mybatis-plus-stream-boot-starter.git</developerConnection>
-        <tag>v4.0.5.0</tag>
+        <tag>v4.1.0.0</tag>
     </scm>
 
     <properties>
@@ -57,10 +57,25 @@
             <artifactId>hutool-all</artifactId>
             <version>${hutool.version}</version>
         </dependency>
+
+        <!-- 4.1 起：单元测试基础设施（仅 test scope，不影响生产打包） -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>5.10.2</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
         <plugins>
+            <!-- 4.1 起：JUnit 5 测试支持（旧 surefire 2.x 不识别 jupiter） -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.2.5</version>
+            </plugin>
+
             <!-- 生成 sources.jar -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
