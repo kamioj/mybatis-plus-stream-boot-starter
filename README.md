@@ -42,14 +42,14 @@ MyBatis-Plus Stream 是一个基于 [MyBatis-Plus](https://baomidou.com) 的增�
 <dependency>
     <groupId>io.github.kamioj</groupId>
     <artifactId>mybatis-plus-stream-boot-starter</artifactId>
-    <version>4.1.0.0</version>
+    <version>4.1.1.0</version>
 </dependency>
 ```
 
 ### Gradle
 
 ```groovy
-implementation 'io.github.kamioj:mybatis-plus-stream-boot-starter:4.1.0.0'
+implementation 'io.github.kamioj:mybatis-plus-stream-boot-starter:4.1.1.0'
 ```
 
 > **环境要求**：JDK 17+、Spring Boot 3.x、MyBatis-Plus 3.5.16（自动引入）
