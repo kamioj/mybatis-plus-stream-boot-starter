@@ -7,7 +7,7 @@
     <parent>
         <groupId>io.github.kamioj</groupId>
         <artifactId>mybatis-plus-stream-parent</artifactId>
-        <version>4.1.1.0</version>
+        <version>4.1.1.1</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
@@ -38,7 +38,7 @@
         <url>https://github.com/kamioj/mybatis-plus-stream-boot-starter</url>
         <connection>scm:git:git://github.com/kamioj/mybatis-plus-stream-boot-starter.git</connection>
         <developerConnection>scm:git:ssh://github.com/kamioj/mybatis-plus-stream-boot-starter.git</developerConnection>
-        <tag>v4.1.1.0</tag>
+        <tag>v4.1.1.1</tag>
     </scm>
 
     <dependencies>
@@ -115,7 +115,9 @@
                 </executions>
             </plugin>
 
-            <!-- 发布到 Maven Central (新版 central portal) -->
+            <!-- 发布到 Maven Central (新版 central portal)
+                 autoPublish=true: 上传 staging 后自动调 Publish API，无需登录 portal 手动点 Publish
+                 （4.0.x ~ 4.1.1.0 因为没配 autoPublish 全部停在 staging 未同步到 Central 仓库） -->
             <plugin>
                 <groupId>org.sonatype.central</groupId>
                 <artifactId>central-publishing-maven-plugin</artifactId>
@@ -123,6 +125,7 @@
                 <extensions>true</extensions>
                 <configuration>
                     <publishingServerId>central</publishingServerId>
+                    <autoPublish>true</autoPublish>
                 </configuration>
             </plugin>
         </plugins>

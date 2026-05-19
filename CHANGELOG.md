@@ -13,6 +13,21 @@
 
 （暂无）
 
+## [4.1.1.1] - 2026-05-19
+
+### Fixed
+
+**Maven Central 同步配置修复**：
+
+- `starter/pom.xml` 的 `central-publishing-maven-plugin` 加 `<autoPublish>true</autoPublish>`
+  - 此前 v3.5.9.0 ~ v4.1.1.0 跑 `mvn deploy` 只上传到 Sonatype Central Portal staging，**未触发 Publish**——所有这些版本实际从未同步到 Maven Central 仓库（`https://repo.maven.apache.org/.../maven-metadata.xml` 只列 `1.0.0` 一个版本）
+  - 用户拉 `<version>4.1.1.0</version>` 会报 "Could not resolve dependencies"
+  - 加 `autoPublish` 后 staging 完成上传立即自动 publish，无需手工操作
+
+### Note
+
+4.1.1.1 与 4.1.1.0 的**库代码完全一致**——纯发布配置修复，让 Maven Central 真正可用。
+
 ## [4.1.1.0] - 2026-05-19
 
 ### Added
