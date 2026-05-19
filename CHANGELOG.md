@@ -13,6 +13,18 @@
 
 （暂无）
 
+## [4.1.1.2] - 2026-05-19
+
+### Fixed
+
+**Multi-module 发布兼容修复**（4.1.1.1 发布失败的修复）：
+
+- 4.1.1.1 deploy 失败：Sonatype Central 拒绝 bundle，错误：
+  - `Failed to get coordinates from pom file ... .pom` —— pom 的 groupId/version 通过 parent 继承没展开
+  - `Dependency version information is missing for dependency: org.junit.jupiter:junit-jupiter` —— `junit-jupiter` 的 version 在父 pom `<dependencyManagement>` 里，starter pom 没显式 version
+- 修复：`starter/pom.xml` 加 `flatten-maven-plugin`（mode=ossrh），install/deploy 时上传扁平化 pom（parent 已展开 + dep version 已展开）
+- 4.1.1.2 与 4.1.1.0 / 4.1.1.1 的库代码完全一致，纯发布配置补丁
+
 ## [4.1.1.1] - 2026-05-19
 
 ### Fixed
