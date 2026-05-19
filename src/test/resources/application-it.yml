@@ -1,0 +1,11 @@
+# 集成测试 Spring Boot 配置（被 testcontainers @ServiceConnection 覆盖数据源）
+spring:
+  application:
+    name: mybatis-plus-stream-it
+  main:
+    banner-mode: off
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl

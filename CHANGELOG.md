@@ -13,6 +13,31 @@
 
 （暂无）
 
+## [4.1.1.0] - 2026-05-19
+
+### Added
+
+**PostgreSQL Testcontainers 集成测试**（验证 4.0/4.1 dialect 适配在真实 PG 17 数据库上工作）：
+
+- `pom.xml` 加 test 依赖：`spring-boot-starter-test` / `spring-boot-testcontainers` / `testcontainers:postgresql:1.20.3` / `postgresql:42.7.4`（test scope，不影响生产打包）
+- `src/test/java/.../it/`：最小 Spring Boot 测试应用 + `UserDo` 实体 + `UserMapper` + `UserService`
+- `PostgreSqlIntegrationTest`：7 个集成测试覆盖
+  - `saveBatchWithoutId` + `list(where)`
+  - `stream().filter().toSet(col)`
+  - `stream().toMap(keyCol, valCol)` 验证 SQL 真下推 SELECT 两列
+  - `stream().toMapCount(keyCol)` 验证 GROUP BY 真下推 SQL
+  - `saveDuplicate` 验证 PG `ON CONFLICT DO UPDATE`
+  - `saveIgnore` 验证 PG `ON CONFLICT DO NOTHING`
+  - `saveReplace` 验证 PG `ON CONFLICT 全列覆盖`
+
+测试自动启动 `postgres:17-alpine` Docker 容器，每个测试方法 reset schema。
+
+### Notes
+
+- DM 集成测试按之前约定**不上 CI**（DM 无官方 testcontainers 模块；用户本地手动验证）
+- 集成测试运行需 Docker；GitHub Actions ubuntu-latest 默认提供 Docker 环境
+- 本地开发跑 `mvn test`：单元测试一定跑通；集成测试需本地有 Docker，否则会启动 PG 容器失败
+
 ## [4.1.0.0] - 2026-05-19
 
 ### Added
@@ -345,7 +370,8 @@ extension/
 
 ---
 
-[Unreleased]: https://github.com/kamioj/mybatis-plus-stream-boot-starter/compare/v4.1.0.0...HEAD
+[Unreleased]: https://github.com/kamioj/mybatis-plus-stream-boot-starter/compare/v4.1.1.0...HEAD
+[4.1.1.0]: https://github.com/kamioj/mybatis-plus-stream-boot-starter/compare/v4.1.0.0...v4.1.1.0
 [4.1.0.0]: https://github.com/kamioj/mybatis-plus-stream-boot-starter/compare/v4.0.5.0...v4.1.0.0
 [4.0.5.0]: https://github.com/kamioj/mybatis-plus-stream-boot-starter/compare/v4.0.4.0...v4.0.5.0
 [4.0.4.0]: https://github.com/kamioj/mybatis-plus-stream-boot-starter/compare/v4.0.3.0...v4.0.4.0
