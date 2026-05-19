@@ -13,6 +13,56 @@
 
 （暂无）
 
+## [4.1.0.0] - 2026-05-19
+
+### Added
+
+**BACKTICK token 化适配器**（解决 PG/DM 复杂 SQL 反引号语法错的核心机制）：
+
+- `DialectQuoteTranslator`：把 wrapper 内部 BACKTICK 风格 SQL 片段（如 `` `user`.`id` ``）翻译为当前方言引号（PG/DM 用双引号 `"user"."id"`；MySQL 是 no-op 不变）
+- 设计：wrapper 内部 SQL 渲染逻辑**完全不变**（保留 BACKTICK 作内部 token / keySet 协议分隔符），只在"最后一公里" SQL 渲染入口加 translator
+- 适配器风格：translator 直接调 `dialect.quoteIdentifier(...)`，不耦合具体方言；用户自定义方言只要实现 quoteIdentifier 自动生效
+- 处理字符串字面值：SQL `'...'` 内的反引号不翻译；标准 `''` 转义正确处理
+- 不成对反引号防御性保留（不破坏 MySQL 兼容路径）
+
+**ExQueryWrapper 5 个 SQL 渲染入口接入 translator**：
+
+- `getSqlSelect()`（SELECT 列）
+- `getCustomSqlSegment()`（WHERE/GROUP BY/HAVING/ORDER BY）
+- `getSqlFrom()`（FROM + JOIN）
+- `getCustomSqlFromSegment()`（同上 + FROM 前缀）
+- `getSqlSet()` / `getSqlConflictClause()`（UPDATE SET / UPSERT）
+
+**单元测试**（10/10 通过）：
+
+- MySQL 方言 no-op 验证
+- PG/DM 翻译验证
+- 字符串字面值保护
+- SQL '' 转义
+- 表别名/JOIN 路径
+- 自定义方言适配器路径
+- 边界情况（空、null、不成对反引号）
+
+### Fixed
+
+之前在 PG/DM 复杂 query 路径会报反引号语法错的 corner cases 现已统一修复：
+
+- 复杂 JOIN + ORDER BY
+- SELECT 子句列名
+- WHERE 表达式列名
+- UPDATE SET 子句
+- ExecutableQueryWrapper 的 getSqlConflictClause 返回值
+
+### Internal
+
+- pom.xml 加 `org.junit.jupiter:junit-jupiter:5.10.2` test scope 依赖
+- 升级 `maven-surefire-plugin` 2.12.4 → 3.2.5（支持 JUnit 5）
+- 新建 `src/test/java` 测试目录
+
+### Known limitations
+
+- testcontainers PG 集成测试是更大工程（需要 Spring Boot test 全栈 + Docker CI 配置），规划在 4.1.1 单独实施。当前 4.1.0 的 unit test 已覆盖 translator 适配器核心行为，加上 ExQueryWrapper 5 个 getter 接入 translator，**理论上**所有反引号 corner case 都已修复
+
 ## [4.0.5.0] - 2026-05-19
 
 ### Fixed
@@ -295,7 +345,8 @@ extension/
 
 ---
 
-[Unreleased]: https://github.com/kamioj/mybatis-plus-stream-boot-starter/compare/v4.0.5.0...HEAD
+[Unreleased]: https://github.com/kamioj/mybatis-plus-stream-boot-starter/compare/v4.1.0.0...HEAD
+[4.1.0.0]: https://github.com/kamioj/mybatis-plus-stream-boot-starter/compare/v4.0.5.0...v4.1.0.0
 [4.0.5.0]: https://github.com/kamioj/mybatis-plus-stream-boot-starter/compare/v4.0.4.0...v4.0.5.0
 [4.0.4.0]: https://github.com/kamioj/mybatis-plus-stream-boot-starter/compare/v4.0.3.0...v4.0.4.0
 [4.0.3.0]: https://github.com/kamioj/mybatis-plus-stream-boot-starter/compare/v4.0.2.0...v4.0.3.0
