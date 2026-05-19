@@ -44,6 +44,20 @@
         <hutool.version>5.8.25</hutool.version>
     </properties>
 
+    <!-- 4.1.1: 引入 spring-boot-dependencies BOM 锁定测试时所有 spring 模块版本一致，
+         避免 NoSuchFieldError 等版本冲突。本 dependencyManagement 不会传递到下游用户项目。 -->
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>3.3.4</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
     <dependencies>
         <!--mybatis-plus整合mybatis (Spring Boot 3)-->
         <dependency>
