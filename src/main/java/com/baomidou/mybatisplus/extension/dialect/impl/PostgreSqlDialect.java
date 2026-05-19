@@ -119,7 +119,13 @@ public class PostgreSqlDialect extends MySqlDialect {
                         "PostgreSQL saveDuplicate 需要实体声明 @TableId 主键（ON CONFLICT 子句必需）。");
                 }
                 String pk = quoteIdentifier(pkColumn.getColumnName());
-                yield "\nON CONFLICT (" + pk + ") DO UPDATE SET\n" + String.join(",\n", setters);
+                // PG SET 子句不允许列名带表名前缀（"tbl"."col" → "col"）
+                StringBuilder sb = new StringBuilder("\nON CONFLICT (").append(pk).append(") DO UPDATE SET\n");
+                for (int i = 0; i < setters.size(); i++) {
+                    if (i > 0) sb.append(",\n");
+                    sb.append(stripTablePrefix(setters.get(i)));
+                }
+                yield sb.toString();
             }
             case IGNORE ->
                 // PG 等价 INSERT IGNORE：行已存在时不动
@@ -149,9 +155,18 @@ public class PostgreSqlDialect extends MySqlDialect {
     }
 
     private static final Pattern UNQUOTE = Pattern.compile("^[\"`]?(.*?)[\"`]?$");
+    private static final Pattern TABLE_PREFIX = Pattern.compile("^[\"`][^\"`]+[\"`]\\.");
 
     private static String stripQuotes(String identifier) {
         Matcher m = UNQUOTE.matcher(identifier);
         return m.matches() ? m.group(1) : identifier;
+    }
+
+    /**
+     * 4.1.1: PG ON CONFLICT DO UPDATE SET 子句不允许列名带表名前缀。
+     * 把 setter 形如 {@code "tbl"."col"=#{val}} 或 {@code `tbl`.`col`=#{val}} 中的表前缀剥掉。
+     */
+    private static String stripTablePrefix(String setter) {
+        return TABLE_PREFIX.matcher(setter).replaceFirst("");
     }
 }
