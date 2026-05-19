@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import com.baomidou.mybatisplus.extension.dialect.DialectQuoteTranslator;
 import com.baomidou.mybatisplus.extension.dialect.DialectRegistry;
 import com.baomidou.mybatisplus.extension.dialect.SqlDialect;
 import com.baomidou.mybatisplus.extension.dialect.WriteMode;
@@ -58,7 +59,9 @@ public class ExecutableQueryWrapper<T> extends ExQueryWrapper<T> {
 
     @Override
     public String getSqlSet() {
-        return CollectionUtils.isEmpty(this.setters) ? "" : String.join(",", this.setters);
+        if (CollectionUtils.isEmpty(this.setters)) return "";
+        // 4.1: setters 中的列名是 BACKTICK 风格 token，通过 translator 适配到方言引号
+        return com.baomidou.mybatisplus.extension.dialect.DialectQuoteTranslator.translate(String.join(",", this.setters));
     }
 
     /**
@@ -91,7 +94,8 @@ public class ExecutableQueryWrapper<T> extends ExQueryWrapper<T> {
             getFromTableInfo().getColumns().stream()
                 .map(ColumnInfo::getColumnName)
                 .toArray(String[]::new);
-        return d.conflictClause(writeMode, setters, pk, allColumns);
+        // 4.1: setters 中可能含 BACKTICK token；translator 翻译为方言引号
+        return DialectQuoteTranslator.translate(d.conflictClause(writeMode, setters, pk, allColumns));
     }
 
     @Override
