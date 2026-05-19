@@ -28,3 +28,6 @@ target/
 # IDE
 .idea/
 *.iml
+
+# flatten-maven-plugin build artifact
+**/.flattened-pom.xml
