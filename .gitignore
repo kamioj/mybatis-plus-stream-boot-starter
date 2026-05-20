@@ -31,3 +31,6 @@ target/
 
 # flatten-maven-plugin build artifact
 **/.flattened-pom.xml
+
+# Internal design documents
+spec/
