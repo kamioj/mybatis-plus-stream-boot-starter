@@ -208,7 +208,7 @@ public abstract class MybatisStream<T, R, Wrapper extends ExQueryWrapper<T>, Chi
     }
 
     public boolean allMatch(Predicate<? super R> predicate) {
-        return toPeekStream().anyMatch(predicate);
+        return toPeekStream().allMatch(predicate);
     }
 
     public boolean noneMatch(Predicate<? super R> predicate) {

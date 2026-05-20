@@ -10,7 +10,6 @@ import com.baomidou.mybatisplus.core.toolkit.Constants;
 import com.baomidou.mybatisplus.core.toolkit.StringPool;
 import com.baomidou.mybatisplus.core.toolkit.StringUtils;
 import com.baomidou.mybatisplus.toolkit.MybatisUtil;
-import com.baomidou.mybatisplus.extension.dialect.SqlDialect;
 import com.baomidou.mybatisplus.extension.dialect.DialectRegistry;
 import com.baomidou.mybatisplus.extension.metadata.TableInfo;
 
@@ -70,7 +69,9 @@ public class ExQueryWrapper<T> extends QueryWrapper<T> {
         existQueryWrapper.withDeleted = this.withDeleted;
         existQueryWrapper.addLogicDeleted = this.addLogicDeleted;
         existQueryWrapper.select("1");
-        existQueryWrapper.setFromTable(this.getFromTableInfo(), this.getFromTableRename());
+        // Phase 2: 直接复制 BACKTICK token 形态的 fromTable，避免对已加引号的别名重复加引号
+        existQueryWrapper.setFromTable(this.fromTable);
+        existQueryWrapper.fromTableInfo = this.fromTableInfo;
         existQueryWrapper.joinTables.addAll(this.joinTables);
         // 复制条件
         List<ISqlSegment> expression;
@@ -145,8 +146,8 @@ public class ExQueryWrapper<T> extends QueryWrapper<T> {
         } else {
             // 无分组
             countQueryWrapper.select("COUNT(*)" + renameSql);
-            countQueryWrapper.setFromTable(this.getFromTableInfo(), this.getFromTableRename());
-//            countQueryWrapper.setFromTable(this.getSqlFrom());
+            countQueryWrapper.setFromTable(this.fromTable);
+            countQueryWrapper.fromTableInfo = this.fromTableInfo;
             countQueryWrapper.joinTables.addAll(this.joinTables);
             // 复制条件
             List<ISqlSegment> expression;
@@ -200,7 +201,8 @@ public class ExQueryWrapper<T> extends QueryWrapper<T> {
             pageQueryWrapper.setDistinct(this.isDistinct());
             pageQueryWrapper.selectSqlList.addAll(this.selectSqlList);
             pageQueryWrapper.updateSelect();
-            pageQueryWrapper.setFromTable(this.getFromTableInfo(), this.getFromTableRename());
+            pageQueryWrapper.setFromTable(this.fromTable);
+            pageQueryWrapper.fromTableInfo = this.fromTableInfo;
             pageQueryWrapper.joinTables.addAll(this.joinTables);
             // 复制条件
             List<ISqlSegment> expression;
@@ -255,13 +257,11 @@ public class ExQueryWrapper<T> extends QueryWrapper<T> {
         if (!addLogicDeleted) {
             addLogicDeleted = true;
             if (fromTableInfo != null && fromTableInfo.isWithLogicDelete() && !withDeleted) {
-                // 4.0.5: 改走 dialect.quoteIdentifier，让 PG/DM 在逻辑删除路径生成正确引号
+                // Phase 2: fromTable 已是 BACKTICK token，alias 直接就是 `xxx` token 形态；
+                // 拼上列名 token，由 getCustomSqlSegment() 的 translate() 统一翻译为方言引号
                 String alias = fromTable.contains(" AS ") ? fromTable.split(" AS ")[1] : fromTable;
-                // 剥掉 alias 可能携带的反引号/双引号（fromTable 已经被引号包裹）
-                String aliasBare = alias.replaceAll("[`\"]", "");
-                String deleteColumn = DialectRegistry.current().quoteIdentifier(aliasBare)
-                        + StringPool.DOT
-                        + DialectRegistry.current().quoteIdentifier(fromTableInfo.getLogicDeleteColumn().getColumnName());
+                String deleteColumn = alias + StringPool.DOT
+                        + StringPool.BACKTICK + fromTableInfo.getLogicDeleteColumn().getColumnName() + StringPool.BACKTICK;
                 if (expression.getNormal().size() > 0) {
 //                    ArrayList<ISqlSegment> normal = new ArrayList<>(expression.getNormal());
 //                    expression.getNormal().clear();
@@ -320,11 +320,12 @@ public class ExQueryWrapper<T> extends QueryWrapper<T> {
     }
 
     public void setFromTable(TableInfo<T> fromTableInfo, String rename) {
-        // 4.0.5: 表名 + AS 别名走 dialect.quoteIdentifier
-        SqlDialect d = DialectRegistry.current();
-        String tableName = d.quoteIdentifier(fromTableInfo.getTableName());
+        // Phase 2: 表名 + AS 别名改存 BACKTICK token，与查询路径列名约定一致；
+        // 实际方言引号在 getSqlFrom() 经 DialectQuoteTranslator.translate() 统一翻译。
+        // rename 必须是裸别名（不带引号）—— 所有调用方都传裸名。
+        String tableName = StringPool.BACKTICK + fromTableInfo.getTableName() + StringPool.BACKTICK;
         if (!StringUtils.isEmpty(rename)) {
-            tableName += Constants.AS + d.quoteIdentifier(rename);
+            tableName += Constants.AS + StringPool.BACKTICK + rename + StringPool.BACKTICK;
         }
         this.fromTable = tableName;
         this.fromTableInfo = fromTableInfo;

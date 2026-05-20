@@ -1,6 +1,10 @@
 package com.baomidou.mybatisplus.extension.dialect.impl;
 
 import com.baomidou.mybatisplus.extension.core.ExecutableQueryWrapper;
+import com.baomidou.mybatisplus.extension.dialect.AbstractSqlDialect;
+import com.baomidou.mybatisplus.extension.dialect.MergeIntoContext;
+import com.baomidou.mybatisplus.extension.dialect.SetterClause;
+import com.baomidou.mybatisplus.extension.dialect.DialectQuoteTranslator;
 import com.baomidou.mybatisplus.extension.dialect.DbType;
 import com.baomidou.mybatisplus.extension.dialect.LockMode;
 import com.baomidou.mybatisplus.extension.dialect.WriteMode;
@@ -18,13 +22,13 @@ import java.util.List;
  *   <li><b>语法选择以 Oracle 优先</b>（DM 主推；功能更完整），降级时考虑 MySQL 兼容</li>
  *   <li>分页用 {@code LIMIT n OFFSET m}（DM 8 在两种模式下均支持）</li>
  *   <li>字符串拼接用 {@code ||}（Oracle 风格）</li>
- *   <li>聚合字符串用 {@code STRING_AGG}（DM 8 + 兼容 PG 风格）</li>
+ *   <li>聚合字符串用 {@code LISTAGG}（DM 8 验证基线支持）</li>
  *   <li><b>UPSERT / INSERT IGNORE / REPLACE 统一用 {@code MERGE INTO}</b>（4.0.3 起完整支持）</li>
  *   <li>行锁支持 {@code FOR UPDATE / NOWAIT / WAIT n}（Oracle 兼容）</li>
  *   <li>标识符引用：双引号</li>
  * </ul>
  */
-public class DamengDialect extends MySqlDialect {
+public class DamengDialect extends AbstractSqlDialect {
 
     @Override
     public DbType dbType() {
@@ -54,9 +58,14 @@ public class DamengDialect extends MySqlDialect {
     @Override
     public String groupConcat(String columnExpr, String separator) {
         if (separator == null) {
-            return "STRING_AGG(" + columnExpr + ", ',')";
+            return "LISTAGG(" + columnExpr + ", ',')";
         }
-        return "STRING_AGG(" + columnExpr + ", '" + separator.replace("'", "''") + "')";
+        return "LISTAGG(" + columnExpr + ", '" + separator.replace("'", "''") + "')";
+    }
+
+    @Override
+    public String regexp(String leftExpr, String rightExpr) {
+        return "REGEXP_LIKE(" + leftExpr + ", " + rightExpr + ")";
     }
 
     @Override
@@ -109,12 +118,28 @@ public class DamengDialect extends MySqlDialect {
     }
 
     @Override
-    public String conflictClause(WriteMode mode, List<String> setters, ColumnInfo pkColumn, String[] allColumns) {
+    public String conflictClause(WriteMode mode, List<SetterClause> setters, ColumnInfo pkColumn, String[] allColumns) {
         return "";  // INSERT 模式无冲突子句；其他模式走 MERGE 不会进这里
     }
 
     @Override
-    public String buildMergeIntoScript(String[] columns, ExecutableQueryWrapper<?> wrapper) {
+    public String incomingColumnRef(String bareColumn) {
+        // DM MERGE 取插入行新值：src."col"
+        return "src." + quoteIdentifier(bareColumn);
+    }
+
+    @Override
+    public String updateSetTarget(String tableQualifier, String bareColumn) {
+        // DM（Oracle 风格）UPDATE SET 目标用裸列。返回 BACKTICK token。
+        return "`" + bareColumn + "`";
+    }
+
+    @Override
+    public String buildMergeIntoScript(MergeIntoContext ctx) {
+        String[] columns = ctx.getColumns();
+        Object[][] values = ctx.getValues();
+        Object[] flatValues = ctx.getFlatValues();
+        ExecutableQueryWrapper<?> wrapper = ctx.getWrapper();
         WriteMode mode = wrapper.getWriteMode();
         ColumnInfo pk = wrapper.getFromTableInfo() == null ? null : wrapper.getFromTableInfo().getKeyColumn();
         if (pk == null) {
@@ -122,28 +147,46 @@ public class DamengDialect extends MySqlDialect {
         }
         String pkColQuoted = quoteIdentifier(pk.getColumnName());
         String tableExpr = wrapper.getSqlFrom();
-        List<String> setters = wrapper.getSetters();
+        List<SetterClause> setters = wrapper.getSetters();
 
         StringBuilder sb = new StringBuilder();
         sb.append("<script>\n");
-        sb.append("MERGE INTO ").append(tableExpr).append(" t\n");
+        // Phase 4 评审修正：MERGE 的 target 不起别名，直接用表名。
+        // 这样 valueExpr 里按表名限定的列引用（如累加 col = col + delta 的右侧）在 MERGE 内能正确解析。
+        sb.append("MERGE INTO ").append(tableExpr).append("\n");
 
         // USING (SELECT v1 col1, v2 col2 FROM DUAL UNION ALL SELECT ...) src
         sb.append("USING (\n");
-        sb.append("  <foreach collection='values' item='item' separator=' UNION ALL '>\n");
-        sb.append("    SELECT ");
-        for (int i = 0; i < columns.length; i++) {
-            if (i > 0) sb.append(", ");
-            sb.append("#{item[").append(i).append("]} AS ").append(columns[i]);
+        int valueIndex = 0;
+        for (int row = 0; row < values.length; row++) {
+            if (row > 0) {
+                sb.append(" UNION ALL\n");
+            }
+            sb.append("    SELECT ");
+            for (int col = 0; col < columns.length; col++) {
+                if (col > 0) sb.append(", ");
+                sb.append("#{flatValues[").append(valueIndex++).append("]} AS ").append(columns[col]);
+            }
+            sb.append(" FROM DUAL\n");
         }
-        sb.append(" FROM DUAL\n");
-        sb.append("  </foreach>\n");
-        sb.append(") src ON (t.").append(pkColQuoted).append(" = src.").append(pkColQuoted).append(")\n");
+        sb.append(") src ON (").append(tableExpr).append(".").append(pkColQuoted)
+            .append(" = src.").append(pkColQuoted).append(")\n");
 
         // WHEN MATCHED 子句（DUPLICATE / REPLACE 才需要；IGNORE 不要）
         if (mode == WriteMode.DUPLICATE) {
             if (setters != null && !setters.isEmpty()) {
-                sb.append("WHEN MATCHED THEN UPDATE SET ").append(String.join(", ", setters)).append("\n");
+                sb.append("WHEN MATCHED THEN UPDATE SET ");
+                for (int i = 0; i < setters.size(); i++) {
+                    if (i > 0) sb.append(", ");
+                    SetterClause s = setters.get(i);
+                    // SET 目标用裸列（MERGE WHEN MATCHED 的 SET 列即目标表列，无歧义）；
+                    // valueExpr 含 BACKTICK / INCOMING token，本路径不经 getSqlConflictClause 的
+                    // translate，故在此显式翻译为 DM 形态
+                    sb.append(quoteIdentifier(s.getTargetColumn()))
+                      .append(" = ")
+                      .append(DialectQuoteTranslator.translate(s.getValueExpr(), this));
+                }
+                sb.append("\n");
             }
             // setters 为空时退化为：行已存在不更新（等价 IGNORE 行为，但用户主动选了 DUPLICATE 模式，行为安全）
         } else if (mode == WriteMode.REPLACE) {
@@ -153,7 +196,7 @@ public class DamengDialect extends MySqlDialect {
             for (String col : columns) {
                 if (col.equals(pkColQuoted)) continue;  // 跳过 PK
                 if (!first) sb.append(", ");
-                sb.append("t.").append(col).append(" = src.").append(col);
+                sb.append(col).append(" = src.").append(col);
                 first = false;
             }
             sb.append("\n");
@@ -175,4 +218,5 @@ public class DamengDialect extends MySqlDialect {
         sb.append("</script>");
         return sb.toString();
     }
+
 }

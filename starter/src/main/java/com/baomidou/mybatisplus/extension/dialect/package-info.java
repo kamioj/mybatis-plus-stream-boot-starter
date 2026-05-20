@@ -11,8 +11,8 @@
  *
  * <h3>用户如何注册自定义方言</h3>
  * <ol>
- *   <li>实现 {@link com.baomidou.mybatisplus.extension.dialect.SqlDialect}
- *       （建议继承 {@link com.baomidou.mybatisplus.extension.dialect.impl.MySqlDialect} 只覆写差异方法）</li>
+ *   <li>继承 {@link com.baomidou.mybatisplus.extension.dialect.AbstractSqlDialect}，
+ *       逐个实现方言敏感方法（不要继承 {@code MySqlDialect} 等具体方言，避免静默继承其 SQL 写法）</li>
  *   <li>在 jar 的 {@code META-INF/services/com.baomidou.mybatisplus.extension.dialect.SqlDialect}
  *       中写一行：你的实现类全限定名</li>
  *   <li>启动时调 {@link com.baomidou.mybatisplus.extension.dialect.DialectRegistry#use} 切换</li>

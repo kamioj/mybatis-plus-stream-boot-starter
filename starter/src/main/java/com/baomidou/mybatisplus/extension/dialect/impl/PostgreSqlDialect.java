@@ -1,5 +1,7 @@
 package com.baomidou.mybatisplus.extension.dialect.impl;
 
+import com.baomidou.mybatisplus.extension.dialect.AbstractSqlDialect;
+import com.baomidou.mybatisplus.extension.dialect.SetterClause;
 import com.baomidou.mybatisplus.extension.dialect.DbType;
 import com.baomidou.mybatisplus.extension.dialect.LockMode;
 import com.baomidou.mybatisplus.extension.dialect.WriteMode;
@@ -13,7 +15,7 @@ import java.util.regex.Pattern;
 /**
  * PostgreSQL 方言（验证基线：PG 17 LTS）。
  *
- * <p>本类继承 {@link MySqlDialect} 仅覆写差异方法，便于审计两方言间的 SQL 分歧。
+ * <p>本类直接继承 {@link AbstractSqlDialect}，每个方言敏感方法均显式实现，便于逐方言审计。
  *
  * <h3>关键差异（vs MySQL）</h3>
  * <ul>
@@ -30,7 +32,7 @@ import java.util.regex.Pattern;
  *   <li>REPLACE INTO：无原生等价；需 DELETE+INSERT 或 ON CONFLICT DO UPDATE 模拟</li>
  * </ul>
  */
-public class PostgreSqlDialect extends MySqlDialect {
+public class PostgreSqlDialect extends AbstractSqlDialect {
 
     @Override
     public DbType dbType() {
@@ -65,6 +67,12 @@ public class PostgreSqlDialect extends MySqlDialect {
         }
         // PG 的 STRING_AGG 第一参必须是 text；强制 cast 避免类型不匹配
         return "STRING_AGG(" + columnExpr + "::text, '" + separator.replace("'", "''") + "')";
+    }
+
+    @Override
+    public String regexp(String leftExpr, String rightExpr) {
+        // PG 用 POSIX 正则匹配操作符 ~（区分大小写）；PG 不支持 MySQL 的 REGEXP 关键字
+        return leftExpr + " ~ " + rightExpr;
     }
 
     @Override
@@ -109,7 +117,7 @@ public class PostgreSqlDialect extends MySqlDialect {
     }
 
     @Override
-    public String conflictClause(WriteMode mode, List<String> setters, ColumnInfo pkColumn, String[] allColumns) {
+    public String conflictClause(WriteMode mode, List<SetterClause> setters, ColumnInfo pkColumn, String[] allColumns) {
         return switch (mode) {
             case INSERT -> "";
             case DUPLICATE -> {
@@ -119,11 +127,13 @@ public class PostgreSqlDialect extends MySqlDialect {
                         "PostgreSQL saveDuplicate 需要实体声明 @TableId 主键（ON CONFLICT 子句必需）。");
                 }
                 String pk = quoteIdentifier(pkColumn.getColumnName());
-                // PG SET 子句不允许列名带表名前缀（"tbl"."col" → "col"）
                 StringBuilder sb = new StringBuilder("\nON CONFLICT (").append(pk).append(") DO UPDATE SET\n");
                 for (int i = 0; i < setters.size(); i++) {
                     if (i > 0) sb.append(",\n");
-                    sb.append(stripTablePrefix(setters.get(i)));
+                    SetterClause s = setters.get(i);
+                    // PG SET 子句用裸列（不带表前缀）；目标列用 BACKTICK token
+                    sb.append('`').append(s.getTargetColumn()).append('`')
+                      .append(" = ").append(s.getValueExpr());
                 }
                 yield sb.toString();
             }
@@ -154,19 +164,22 @@ public class PostgreSqlDialect extends MySqlDialect {
         };
     }
 
+    @Override
+    public String incomingColumnRef(String bareColumn) {
+        // PG upsert 取插入行新值：EXCLUDED."col"
+        return "EXCLUDED." + quoteIdentifier(bareColumn);
+    }
+
+    @Override
+    public String updateSetTarget(String tableQualifier, String bareColumn) {
+        // PG UPDATE SET 目标用裸列（PG 禁止限定 SET 目标）。返回 BACKTICK token。
+        return "`" + bareColumn + "`";
+    }
+
     private static final Pattern UNQUOTE = Pattern.compile("^[\"`]?(.*?)[\"`]?$");
-    private static final Pattern TABLE_PREFIX = Pattern.compile("^[\"`][^\"`]+[\"`]\\.");
 
     private static String stripQuotes(String identifier) {
         Matcher m = UNQUOTE.matcher(identifier);
         return m.matches() ? m.group(1) : identifier;
-    }
-
-    /**
-     * 4.1.1: PG ON CONFLICT DO UPDATE SET 子句不允许列名带表名前缀。
-     * 把 setter 形如 {@code "tbl"."col"=#{val}} 或 {@code `tbl`.`col`=#{val}} 中的表前缀剥掉。
-     */
-    private static String stripTablePrefix(String setter) {
-        return TABLE_PREFIX.matcher(setter).replaceFirst("");
     }
 }

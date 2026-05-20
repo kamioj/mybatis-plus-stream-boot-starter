@@ -54,10 +54,22 @@ public interface SqlDialect {
      * 分组字符串聚合。
      * <ul>
      *   <li>MySQL: {@code GROUP_CONCAT(col SEPARATOR ',')}</li>
-     *   <li>PG / DM: {@code STRING_AGG(col, ',')}</li>
+     *   <li>PG: {@code STRING_AGG(col, ',')}</li>
+     *   <li>DM: {@code LISTAGG(col, ',')}</li>
      * </ul>
      */
     String groupConcat(String columnExpr, String separator);
+
+    /**
+     * 正则匹配表达式。
+     * <ul>
+     *   <li>MySQL: {@code left REGEXP right}</li>
+     *   <li>DM: {@code REGEXP_LIKE(left, right)}</li>
+     * </ul>
+     */
+    default String regexp(String leftExpr, String rightExpr) {
+        return leftExpr + " REGEXP " + rightExpr;
+    }
 
     /**
      * 类型转换表达式。
@@ -74,6 +86,17 @@ public interface SqlDialect {
      * 实现示例：MySQL 把 {@code SIGNED} 直接返回 {@code "SIGNED"}；PG 返回 {@code "BIGINT"}。
      */
     String dataTypeName(SqlDataType type);
+
+    /**
+     * 字符集转换表达式 {@code CONVERT(expr USING charset)}。
+     * <p>这是 MySQL 中心的特性：仅 MySQL 等支持 {@code CONVERT ... USING} 语法的方言有意义。
+     * 默认抛 {@link UnsupportedOperationException}（与 {@link #buildMergeIntoScript} 的不支持处理一致），
+     * 让不支持的方言显式失败，而不是静默生成非法 SQL。
+     */
+    default String convertCharset(String expr, String charset) {
+        throw new UnsupportedOperationException(
+            "Dialect " + dbType() + " 不支持字符集转换 CONVERT(... USING ...)");
+    }
 
     /* ============== 行锁 ============== */
 
@@ -117,12 +140,37 @@ public interface SqlDialect {
      * 返回 INSERT 语句末尾的<b>冲突处理子句</b>（含前导空格/换行；INSERT 模式返回空串）。
      *
      * @param mode      写入模式
-     * @param setters   用户通过 {@code DuplicateSetLambdaQueryWrapper.set(...)} 收集的赋值表达式
-     *                  （形如 {@code "update_time = #{ew.paramNameValuePairs.X}"}），仅 {@link WriteMode#DUPLICATE} 用到
+     * @param setters   用户收集的结构化赋值子句 {@link SetterClause} 列表，仅 {@link WriteMode#DUPLICATE} 用到
      * @param pkColumn  实体主键列（PG ON CONFLICT 子句必需），null 表示未声明 PK
      * @param allColumns 表的所有列（{@link WriteMode#REPLACE} 全列覆盖语义所需）
      */
-    String conflictClause(WriteMode mode, List<String> setters, ColumnInfo pkColumn, String[] allColumns);
+    String conflictClause(WriteMode mode, List<SetterClause> setters, ColumnInfo pkColumn, String[] allColumns);
+
+    /**
+     * upsert 冲突子句里「取插入行新值」的引用形态。
+     * <ul>
+     *   <li>MySQL: {@code VALUES(`col`)}</li>
+     *   <li>PG: {@code EXCLUDED."col"}</li>
+     *   <li>DM: {@code src."col"}</li>
+     * </ul>
+     * 默认抛 {@link UnsupportedOperationException}（不支持 upsert 的方言）。
+     */
+    default String incomingColumnRef(String bareColumn) {
+        throw new UnsupportedOperationException(
+            "Dialect " + dbType() + " 不支持 upsert 的「插入行新值」引用");
+    }
+
+    /**
+     * UPDATE SET 子句里目标列的渲染形态。
+     * <ul>
+     *   <li>MySQL: {@code `qualifier`.`col`}（多表 UPDATE 需限定符消歧；qualifier 空则裸列）</li>
+     *   <li>PG / DM: {@code `col`}（标准 SQL 单表 UPDATE，SET 目标用裸列）</li>
+     * </ul>
+     * 返回值含 BACKTICK token，经本翻译器最终翻译为方言引号。默认返回裸列 token。
+     */
+    default String updateSetTarget(String tableQualifier, String bareColumn) {
+        return "`" + bareColumn + "`";
+    }
 
     /* ============== MERGE INTO 路径（4.0.3 引入，DM 专用）============== */
 
@@ -138,11 +186,10 @@ public interface SqlDialect {
      * 当 {@link #useMergeInto(WriteMode)} 返回 true 时，生成完整的 {@code <script>...</script>} 字符串
      * 供 {@code @InsertProvider} 渲染。
      *
-     * @param columns      列名数组（已带方言引号）
-     * @param wrapper      执行 wrapper（含表名、PK、setters、writeMode 等元数据）
+     * @param ctx MERGE 上下文（列名、批量值、扁平值、执行 wrapper）
      * @return MyBatis {@code <script>} 形式的 SQL 字符串
      */
-    default String buildMergeIntoScript(String[] columns, com.baomidou.mybatisplus.extension.core.ExecutableQueryWrapper<?> wrapper) {
+    default String buildMergeIntoScript(MergeIntoContext ctx) {
         throw new UnsupportedOperationException("Dialect " + dbType() + " 不需要 MERGE INTO 路径");
     }
 }

@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.toolkit.ReflectUtils;
 import java.util.function.Function;
 import com.baomidou.mybatisplus.extension.core.ExecutableQueryWrapper;
 import com.baomidou.mybatisplus.extension.core.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.dialect.SetterClause;
 
 /**
  * 赋值表达式包装
@@ -82,7 +83,9 @@ public abstract class AbstractSetLambdaQueryWrapper<F extends AbstractFunctionLa
             return typedThis;
         }
         try {
-            getQueryWrapper().addSetter(getFullColumnName(column, null) + "=" + getSubSqlSegment(func, fClazz));
+            // Phase 4: 构造结构化 setter（裸表名 + 裸列名 + 方言中立 valueExpr）
+            String[] qc = getQualifierAndColumn(column);
+            getQueryWrapper().addSetter(new SetterClause(qc[0], qc[1], getSubSqlSegment(func, fClazz)));
         } catch (ReflectiveOperationException ignored) {
         }
         return typedThis;

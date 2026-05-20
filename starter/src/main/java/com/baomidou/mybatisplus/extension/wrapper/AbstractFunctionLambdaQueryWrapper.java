@@ -11,6 +11,8 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import com.baomidou.mybatisplus.extension.core.ExQueryWrapper;
+import com.baomidou.mybatisplus.extension.dialect.DialectRegistry;
+import com.baomidou.mybatisplus.extension.metadata.SqlDataType;
 import com.baomidou.mybatisplus.extension.metadata.Struct;
 import com.baomidou.mybatisplus.extension.support.StringUtils;
 
@@ -560,7 +562,20 @@ public abstract class AbstractFunctionLambdaQueryWrapper<W extends AbstractWhere
      */
     @SuppressWarnings("unchecked")
     public <V, R> R convertDataTypeFunc(Function<Children, V> func, String dataType) {
-        return function("CONVERT", new Func<>((Class<Children>) getClass(), func), Func.comma, Func.keywordFunc(dataType));
+        try {
+            String expr = getSubSqlSegment(func, (Class<Children>) getClass());
+            sqlSegment = DialectRegistry.current().cast(expr, sqlDataType(dataType));
+        } catch (ReflectiveOperationException ignored) {
+        }
+        return null;
+    }
+
+    private static SqlDataType sqlDataType(String dataType) {
+        try {
+            return SqlDataType.valueOf(dataType.trim().toUpperCase(Locale.ROOT));
+        } catch (Exception ignored) {
+            return SqlDataType.CHAR;
+        }
     }
 
     /**
@@ -572,7 +587,13 @@ public abstract class AbstractFunctionLambdaQueryWrapper<W extends AbstractWhere
      */
     @SuppressWarnings("unchecked")
     public String convertCharacterSetFunc(Function<Children, String> func, String characterSet) {
-        return function("CONVERT", new Func<>((Class<Children>) getClass(), func), Func.using, Func.keywordFunc(characterSet));
+        // Phase 3: 字符集转换路由到方言；非 MySQL 方言默认抛 UnsupportedOperationException
+        try {
+            String expr = getSubSqlSegment(func, (Class<Children>) getClass());
+            sqlSegment = DialectRegistry.current().convertCharset(expr, characterSet);
+        } catch (ReflectiveOperationException ignored) {
+        }
+        return null;
     }
 
     /**
@@ -1094,7 +1115,14 @@ public abstract class AbstractFunctionLambdaQueryWrapper<W extends AbstractWhere
 
     @SuppressWarnings("unchecked")
     public <V extends Comparable<V>> Long regexpFunc(Function<Children, V> func1, Function<Children, String> func2) {
-        return operate("REGEXP", (Class<Children>) getClass(), func1, func2);
+        // Phase 3: 正则匹配路由到方言（MySQL 中缀 REGEXP；DM REGEXP_LIKE；PG ~）
+        try {
+            sqlSegment = DialectRegistry.current().regexp(
+                getSubSqlSegment(func1, (Class<Children>) getClass()),
+                getSubSqlSegment(func2, (Class<Children>) getClass()));
+        } catch (ReflectiveOperationException ignored) {
+        }
+        return null;
     }
 
     // 逻辑运算
@@ -1523,7 +1551,15 @@ public abstract class AbstractFunctionLambdaQueryWrapper<W extends AbstractWhere
     @SafeVarargs
     @SuppressWarnings("unchecked")
     public final String concatFunc(Function<Children, String>... func) {
-        return function("CONCAT", (Class<Children>) getClass(), func);
+        try {
+            String[] parts = new String[func.length];
+            for (int i = 0; i < func.length; i++) {
+                parts[i] = getSubSqlSegment(func[i], (Class<Children>) getClass());
+            }
+            sqlSegment = DialectRegistry.current().concat(parts);
+        } catch (ReflectiveOperationException ignored) {
+        }
+        return null;
     }
 
     /**

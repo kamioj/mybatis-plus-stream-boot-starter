@@ -2,6 +2,7 @@ package com.baomidou.mybatisplus.extension.wrapper;
 
 import com.baomidou.mybatisplus.core.toolkit.ArrayUtils;
 import com.baomidou.mybatisplus.core.toolkit.support.SFunction;
+import com.baomidou.mybatisplus.extension.dialect.DialectRegistry;
 import com.baomidou.mybatisplus.toolkit.ReflectUtils;
 
 import java.util.*;
@@ -1120,7 +1121,9 @@ public abstract class AbstractWhereLambdaQueryWrapper<F extends AbstractFunction
     public Children regexpFunc(boolean condition, Function<F, String> func1, Function<F, String> func2) {
         try {
             if (condition) {
-                getQueryWrapper().apply(getSubSqlSegment(func1, fClazz) + " REGEXP " + getSubSqlSegment(func2, fClazz));
+                getQueryWrapper().apply(DialectRegistry.current().regexp(
+                    getSubSqlSegment(func1, fClazz),
+                    getSubSqlSegment(func2, fClazz)));
             }
         } catch (ReflectiveOperationException ignored) {
         }

@@ -16,6 +16,7 @@ import com.baomidou.mybatisplus.extension.metadata.ColumnInfo;
 import com.baomidou.mybatisplus.extension.support.StringUtils;
 import com.baomidou.mybatisplus.extension.wrapper.DuplicateSetLambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.wrapper.NormalFunctionLambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.dialect.SetterClause;
 import com.baomidou.mybatisplus.extension.wrapper.NormalSetLambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.wrapper.OrderLambdaQueryWrapper;
 
@@ -323,6 +324,17 @@ public class MybatisExecutableStream<T> extends MybatisStream<T, T, ExecutableQu
     public int executeDelete() {
         assert queryWrapper.getExpression() != null && !queryWrapper.getExpression().getNormal().isEmpty() : "批量删除需要带上删除条件，不可全表更新";
 
+        if (queryWrapper.getFromTableInfo() != null && queryWrapper.getFromTableInfo().isWithLogicDelete()) {
+            ColumnInfo logicDeleteColumn = queryWrapper.getFromTableInfo().getLogicDeleteColumn();
+            NormalFunctionLambdaQueryWrapper funcLambda = new NormalFunctionLambdaQueryWrapper();
+            funcLambda.value(queryWrapper.getFromTableInfo().getLogicDeleteValue());
+            // Phase 4: 结构化 setter（裸表名 + 裸列名 + valueExpr）
+            queryWrapper.addSetter(new SetterClause(
+                queryWrapper.getFromTableInfo().getTableName(),
+                logicDeleteColumn.getColumnName(),
+                funcLambda.getSqlSegment(queryWrapper)));
+            return baseMapper.updateBatch(queryWrapper);
+        }
         return baseMapper.delete(queryWrapper);
     }
 
@@ -350,7 +362,7 @@ public class MybatisExecutableStream<T> extends MybatisStream<T, T, ExecutableQu
         assert queryWrapper.getExpression() != null && !queryWrapper.getExpression().getNormal().isEmpty() : "批量更新需要带上更新条件，不可全表更新";
 
         // 临时保存setter防止被篡改
-        List<String> tempSetters = new ArrayList<>(queryWrapper.getSetters());
+        List<SetterClause> tempSetters = new ArrayList<>(queryWrapper.getSetters());
         try {
             // 获取表信息
             Object value;
@@ -376,7 +388,7 @@ public class MybatisExecutableStream<T> extends MybatisStream<T, T, ExecutableQu
                     }
                     funcLambda = new NormalFunctionLambdaQueryWrapper();
                     funcLambda.value(value);
-                    this.queryWrapper.addSetter(this.queryWrapper.getFromTableRename() + StringPool.DOT + com.baomidou.mybatisplus.extension.dialect.DialectRegistry.current().quoteIdentifier(columnInfo.getColumnName()) + " = " + funcLambda.getSqlSegment(this.queryWrapper));
+                    this.queryWrapper.addSetter(new SetterClause(this.queryWrapper.getFromTableInfo().getTableName(), columnInfo.getColumnName(), funcLambda.getSqlSegment(this.queryWrapper)));
                 }
             } else {
                 // 配置了更新列，只插入更新列
@@ -384,7 +396,7 @@ public class MybatisExecutableStream<T> extends MybatisStream<T, T, ExecutableQu
                     value = ReflectUtils.getPropertyValue(entity, columnInfo.getPropertyName());
                     funcLambda = new NormalFunctionLambdaQueryWrapper();
                     funcLambda.value(value);
-                    this.queryWrapper.addSetter(this.queryWrapper.getFromTableRename() + StringPool.DOT + com.baomidou.mybatisplus.extension.dialect.DialectRegistry.current().quoteIdentifier(columnInfo.getColumnName()) + " = " + funcLambda.getSqlSegment(this.queryWrapper));
+                    this.queryWrapper.addSetter(new SetterClause(this.queryWrapper.getFromTableInfo().getTableName(), columnInfo.getColumnName(), funcLambda.getSqlSegment(this.queryWrapper)));
                 }
             }
             return baseMapper.updateBatch(this.queryWrapper);
@@ -406,7 +418,10 @@ public class MybatisExecutableStream<T> extends MybatisStream<T, T, ExecutableQu
         com.baomidou.mybatisplus.extension.dialect.SqlDialect d =
             com.baomidou.mybatisplus.extension.dialect.DialectRegistry.current();
         if (d.useMergeInto(queryWrapper.getWriteMode())) {
-            return baseMapper.mergeInto(columns, values, queryWrapper);
+            Object[] flatValues = java.util.Arrays.stream(values)
+                .flatMap(java.util.Arrays::stream)
+                .toArray();
+            return baseMapper.mergeInto(columns, values, flatValues, queryWrapper);
         }
         return baseMapper.insertDuplicate(columns, values, queryWrapper);
     }

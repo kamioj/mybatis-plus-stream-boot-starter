@@ -8,13 +8,14 @@ import java.util.List;
 import java.util.Set;
 import com.baomidou.mybatisplus.extension.dialect.DialectQuoteTranslator;
 import com.baomidou.mybatisplus.extension.dialect.DialectRegistry;
+import com.baomidou.mybatisplus.extension.dialect.SetterClause;
 import com.baomidou.mybatisplus.extension.dialect.SqlDialect;
 import com.baomidou.mybatisplus.extension.dialect.WriteMode;
 import com.baomidou.mybatisplus.extension.metadata.ColumnInfo;
 
 public class ExecutableQueryWrapper<T> extends ExQueryWrapper<T> {
 
-    private final List<String> setters = new ArrayList<>();
+    private final List<SetterClause> setters = new ArrayList<>();
 
     private final Set<ColumnInfo> effectColumns = new HashSet<>();
 
@@ -33,11 +34,11 @@ public class ExecutableQueryWrapper<T> extends ExQueryWrapper<T> {
         super(tClass);
     }
 
-    public void addSetter(String setter) {
+    public void addSetter(SetterClause setter) {
         this.setters.add(setter);
     }
 
-    public List<String> getSetters() {
+    public List<SetterClause> getSetters() {
         return setters;
     }
 
@@ -60,8 +61,16 @@ public class ExecutableQueryWrapper<T> extends ExQueryWrapper<T> {
     @Override
     public String getSqlSet() {
         if (CollectionUtils.isEmpty(this.setters)) return "";
-        // 4.1: setters 中的列名是 BACKTICK 风格 token，通过 translator 适配到方言引号
-        return com.baomidou.mybatisplus.extension.dialect.DialectQuoteTranslator.translate(String.join(",", this.setters));
+        // Phase 4: 结构化 setter → 方言渲染 UPDATE SET 目标 + valueExpr，再经 translator 翻译 token
+        SqlDialect d = DialectRegistry.current();
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < this.setters.size(); i++) {
+            if (i > 0) sb.append(",");
+            SetterClause s = this.setters.get(i);
+            sb.append(d.updateSetTarget(s.getTableQualifier(), s.getTargetColumn()))
+              .append(" = ").append(s.getValueExpr());
+        }
+        return DialectQuoteTranslator.translate(sb.toString());
     }
 
     /**

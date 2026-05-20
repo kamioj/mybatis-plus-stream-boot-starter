@@ -1,8 +1,9 @@
 package com.baomidou.mybatisplus.extension.dialect.impl;
 
+import com.baomidou.mybatisplus.extension.dialect.AbstractSqlDialect;
+import com.baomidou.mybatisplus.extension.dialect.SetterClause;
 import com.baomidou.mybatisplus.extension.dialect.DbType;
 import com.baomidou.mybatisplus.extension.dialect.LockMode;
-import com.baomidou.mybatisplus.extension.dialect.SqlDialect;
 import com.baomidou.mybatisplus.extension.dialect.WriteMode;
 import com.baomidou.mybatisplus.extension.metadata.ColumnInfo;
 import com.baomidou.mybatisplus.extension.metadata.SqlDataType;
@@ -13,9 +14,10 @@ import java.util.List;
  * MySQL / MariaDB 方言。<b>4.0 默认实现</b>。
  *
  * <p>所有 SQL 片段与 3.x 行为保持一致，保证 3.x → 4.0 用户无感升级。
- * 其他方言（PostgreSQL / DM / Oracle 等）建议继承本类后覆写差异方法。
+ * 其他方言（PostgreSQL / DM / Oracle 等）应继承 {@link AbstractSqlDialect}，
+ * <b>不要</b>继承本类——避免静默继承 MySQL 的 SQL 写法。
  */
-public class MySqlDialect implements SqlDialect {
+public class MySqlDialect extends AbstractSqlDialect {
 
     @Override
     public DbType dbType() {
@@ -51,9 +53,21 @@ public class MySqlDialect implements SqlDialect {
     }
 
     @Override
+    public String regexp(String leftExpr, String rightExpr) {
+        // MySQL 支持中缀 REGEXP
+        return leftExpr + " REGEXP " + rightExpr;
+    }
+
+    @Override
     public String cast(String expr, SqlDataType type) {
         // MySQL 习惯用 CONVERT(expr, TYPE)
         return "CONVERT(" + expr + ", " + dataTypeName(type) + ")";
+    }
+
+    @Override
+    public String convertCharset(String expr, String charset) {
+        // MySQL 字符集转换：CONVERT(expr USING charset)
+        return "CONVERT(" + expr + " USING " + charset + ")";
     }
 
     @Override
@@ -89,13 +103,36 @@ public class MySqlDialect implements SqlDialect {
     }
 
     @Override
-    public String conflictClause(WriteMode mode, List<String> setters, ColumnInfo pkColumn, String[] allColumns) {
+    public String conflictClause(WriteMode mode, List<SetterClause> setters, ColumnInfo pkColumn, String[] allColumns) {
         if (mode == WriteMode.DUPLICATE) {
             if (setters == null || setters.isEmpty()) return "";
-            return "\nON DUPLICATE KEY UPDATE\n" + String.join(",\n", setters);
+            StringBuilder sb = new StringBuilder("\nON DUPLICATE KEY UPDATE\n");
+            for (int i = 0; i < setters.size(); i++) {
+                if (i > 0) sb.append(",\n");
+                SetterClause s = setters.get(i);
+                // 目标列用 BACKTICK token；冲突子句为单表，忽略 tableQualifier
+                sb.append('`').append(s.getTargetColumn()).append('`')
+                  .append(" = ").append(s.getValueExpr());
+            }
+            return sb.toString();
         }
         // IGNORE / REPLACE 的语义已在 insertPrefix 表达；末尾不需要子句
         return "";
+    }
+
+    @Override
+    public String incomingColumnRef(String bareColumn) {
+        // MySQL upsert 取插入行新值：VALUES(`col`)
+        return "VALUES(" + quoteIdentifier(bareColumn) + ")";
+    }
+
+    @Override
+    public String updateSetTarget(String tableQualifier, String bareColumn) {
+        // MySQL 多表 UPDATE 需表限定符消歧；qualifier 空则裸列。返回 BACKTICK token。
+        if (tableQualifier == null || tableQualifier.isEmpty()) {
+            return "`" + bareColumn + "`";
+        }
+        return "`" + tableQualifier + "`.`" + bareColumn + "`";
     }
 
     private static String escapeStringLiteral(String s) {

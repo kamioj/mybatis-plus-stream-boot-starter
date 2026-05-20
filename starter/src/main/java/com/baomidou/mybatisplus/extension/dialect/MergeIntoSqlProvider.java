@@ -14,11 +14,13 @@ import org.apache.ibatis.annotations.Param;
  */
 public final class MergeIntoSqlProvider {
 
-    private MergeIntoSqlProvider() {}
+    public MergeIntoSqlProvider() {}
 
     public String buildSql(@Param("columns") String[] columns,
                            @Param("values") Object[][] values,
+                           @Param("flatValues") Object[] flatValues,
                            @Param(Constants.WRAPPER) ExecutableQueryWrapper<?> wrapper) {
-        return DialectRegistry.current().buildMergeIntoScript(columns, wrapper);
+        return DialectRegistry.current().buildMergeIntoScript(
+            new MergeIntoContext(columns, values, flatValues, wrapper));
     }
 }

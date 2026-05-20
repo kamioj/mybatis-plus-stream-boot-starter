@@ -182,6 +182,22 @@ public abstract class LambdaQueryWrapper<Children extends LambdaQueryWrapper<Chi
         throw new ReflectiveOperationException();
     }
 
+    /**
+     * Phase 4: 解析 SFunction 对应的 [裸表名, 裸列名]，供结构化 setter（{@code SetterClause}）构造使用。
+     */
+    protected <T> String[] getQualifierAndColumn(SFunction<T, ?> column) throws ReflectiveOperationException {
+        String property = getPropertyName(column);
+        TableInfo<T> tableInfo = getTable(column);
+        if (tableInfo != null) {
+            Optional<ColumnInfo> columnInfo = tableInfo.getColumns().stream()
+                    .filter(x -> x.getPropertyName().equalsIgnoreCase(property)).findFirst();
+            if (columnInfo.isPresent()) {
+                return new String[]{tableInfo.getTableName(), columnInfo.get().getColumnName()};
+            }
+        }
+        throw new ReflectiveOperationException();
+    }
+
     protected <T> String getFullColumnName(Class<T> entityClass, String propertyName, String rename) throws ReflectiveOperationException {
         TableInfo<T> tableInfo = getTable(entityClass);
         if (tableInfo != null) {

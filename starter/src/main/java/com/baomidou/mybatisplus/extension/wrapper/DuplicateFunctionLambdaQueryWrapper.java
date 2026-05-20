@@ -1,6 +1,7 @@
 package com.baomidou.mybatisplus.extension.wrapper;
 
 import com.baomidou.mybatisplus.core.toolkit.support.SFunction;
+import com.baomidou.mybatisplus.extension.dialect.DialectQuoteTranslator;
 
 import java.util.function.Consumer;
 
@@ -25,9 +26,14 @@ public final class DuplicateFunctionLambdaQueryWrapper<T> extends AbstractFuncti
         return _case0(_case);
     }
 
-    @SuppressWarnings("unchecked")
     public <V> V duplicateValue(SFunction<T, ?> column) {
-        return function("VALUES", (Class<DuplicateFunctionLambdaQueryWrapper<T>>) getClass(), x -> x.column(column));
+        // Phase 4: 产出方言中立的 INCOMING token，由渲染边界翻译为 VALUES/EXCLUDED/src
+        try {
+            String[] qc = getQualifierAndColumn(column);
+            sqlSegment = DialectQuoteTranslator.incomingToken(qc[1]);
+        } catch (ReflectiveOperationException ignored) {
+        }
+        return null;
     }
 
 }

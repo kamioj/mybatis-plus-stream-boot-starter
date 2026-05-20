@@ -22,7 +22,7 @@ import java.util.concurrent.atomic.AtomicReference;
  *
  * <h3>用户自定义方言</h3>
  * <ol>
- *   <li>实现 {@link SqlDialect}（可继承 {@link MySqlDialect} 只覆写差异方法）</li>
+ *   <li>继承 {@link AbstractSqlDialect}，逐个实现方言敏感方法</li>
  *   <li>在 {@code META-INF/services/com.baomidou.mybatisplus.extension.dialect.SqlDialect}
  *       中声明实现类全限定名</li>
  *   <li>在 Spring Boot 启动时调 {@code DialectRegistry.use(myDialect)} 切换</li>

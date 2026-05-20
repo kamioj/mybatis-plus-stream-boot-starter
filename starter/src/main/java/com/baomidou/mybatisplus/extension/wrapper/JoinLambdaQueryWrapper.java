@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.toolkit.support.SFunction;
 import com.baomidou.mybatisplus.toolkit.MybatisUtil;
 
 import java.util.function.Consumer;
+import com.baomidou.mybatisplus.core.toolkit.StringPool;
 import com.baomidou.mybatisplus.extension.core.ExQueryWrapper;
 import com.baomidou.mybatisplus.extension.core.LambdaQueryWrapper;
 
@@ -429,7 +430,9 @@ public final class JoinLambdaQueryWrapper<T> extends LambdaQueryWrapper<JoinLamb
         sb.append(joinType).append(" JOIN \n ");
         SubSqlLambdaQueryWrapper subSqlLambda = new SubSqlLambdaQueryWrapper();
         subSql.accept(subSqlLambda);
-        sb.append("(").append(subSqlLambda.getSqlSegment(getQueryWrapper())).append(") AS ").append(joinRename);
+        // Phase 2: 派生表别名改用 BACKTICK token；join SQL 经 getSqlFrom() 的 translate() 翻译
+        sb.append("(").append(subSqlLambda.getSqlSegment(getQueryWrapper())).append(") AS ")
+            .append(StringPool.BACKTICK).append(joinRename).append(StringPool.BACKTICK);
         sb.append(" ON ");
         NormalWhereLambdaQueryWrapper whereLambda = new NormalWhereLambdaQueryWrapper();
         predicate.accept(whereLambda);

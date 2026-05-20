@@ -169,11 +169,25 @@ public abstract class MybatisQueryableStream<T, R, Children extends MybatisQuery
         this.queryWrapper.reset();
         if (renameClass.length == 1 && renameClass[0].equals(Object.class)) {
             // 单值类型
-            return result.stream().filter(Objects::nonNull).map(x -> (R) x.get("V")).filter(Objects::nonNull);
+            return result.stream().filter(Objects::nonNull).map(x -> (R) valueOfAlias(x, "mps_v", "mpsV", "V"))
+                .filter(Objects::nonNull);
         } else {
             // 实体类型
             return MybatisUtil.mapStream(result, renameClass).map(getReturnMapper());
         }
+    }
+
+    private static Object valueOfAlias(Map<String, Object> row, String... aliases) {
+        for (String alias : aliases) {
+            if (row.containsKey(alias)) {
+                return row.get(alias);
+            }
+            String upper = alias.toUpperCase();
+            if (row.containsKey(upper)) {
+                return row.get(upper);
+            }
+        }
+        return row.values().stream().findFirst().orElse(null);
     }
 
     public Children forUpdate() {
@@ -331,7 +345,7 @@ public abstract class MybatisQueryableStream<T, R, Children extends MybatisQuery
         for (Map<String, Object> row : rows) {
             // 4.1.1: 通过 alias 取值（Map iterator 顺序在 PG 等 JDBC 上不可靠）
             @SuppressWarnings("unchecked")
-            K v = (K) row.get("mps_k");
+            K v = (K) valueOfAlias(row, "mps_k", "mpsK", "K");
             if (v != null) result.add(v);
         }
         return result;
@@ -356,9 +370,9 @@ public abstract class MybatisQueryableStream<T, R, Children extends MybatisQuery
         java.util.LinkedHashMap<K, V> result = new java.util.LinkedHashMap<>();
         for (Map<String, Object> row : rows) {
             @SuppressWarnings("unchecked")
-            K k = (K) row.get("mps_k");
+            K k = (K) valueOfAlias(row, "mps_k", "mpsK", "K");
             @SuppressWarnings("unchecked")
-            V v = (V) row.get("mps_v");
+            V v = (V) valueOfAlias(row, "mps_v", "mpsV", "V");
             if (k != null) result.merge(k, v, merger);
         }
         return result;
@@ -469,8 +483,8 @@ public abstract class MybatisQueryableStream<T, R, Children extends MybatisQuery
         for (Map<String, Object> row : rows) {
             // 4.1.1: 显式按 alias 取值，避免 Map iterator 顺序不可靠导致 key/value 错位
             @SuppressWarnings("unchecked")
-            K key = (K) row.get("mps_k");
-            Object raw = row.get("mps_v");
+            K key = (K) valueOfAlias(row, "mps_k", "mpsK", "K");
+            Object raw = valueOfAlias(row, "mps_v", "mpsV", "V");
             if (raw == null) continue;
             if (!rawType.isInstance(raw)) {
                 throw new IllegalStateException("Unexpected aggregate type: " + raw.getClass());

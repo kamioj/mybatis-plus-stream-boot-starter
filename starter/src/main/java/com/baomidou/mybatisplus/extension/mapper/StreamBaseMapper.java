@@ -73,7 +73,10 @@ public interface StreamBaseMapper<T> extends BaseMapper<T> {
      * {@code SqlDialect.useMergeInto(WriteMode)} 决定是否走本方法。
      */
     @InsertProvider(type = MergeIntoSqlProvider.class, method = "buildSql")
-    int mergeInto(@Param("columns") String[] columns, @Param("values") Object[][] values, @Param(Constants.WRAPPER) ExecutableQueryWrapper<?> queryWrapper);
+    int mergeInto(@Param("columns") String[] columns,
+                  @Param("values") Object[][] values,
+                  @Param("flatValues") Object[] flatValues,
+                  @Param(Constants.WRAPPER) ExecutableQueryWrapper<?> queryWrapper);
 
     @Update("<script>" +
             "UPDATE ${ew.sqlFrom}\n" +
