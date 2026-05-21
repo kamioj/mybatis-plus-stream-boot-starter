@@ -1,0 +1,22 @@
+spring:
+  datasource:
+    # 连接本地 MySQL；createDatabaseIfNotExist 免手动建库。
+    url: jdbc:mysql://localhost:3306/mps_quickstart?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    # 账号密码用环境变量占位符注入，不在仓库中硬编码。
+    # 运行前设置：MYSQL_USER / MYSQL_PASSWORD（或本地新建 application-local.yml 覆盖，该文件已 gitignore）。
+    username: ${MYSQL_USER:root}
+    password: ${MYSQL_PASSWORD:}
+  sql:
+    init:
+      mode: always          # 启动时执行 schema.sql + data.sql（schema 用 DROP+CREATE，可重复运行）
+      encoding: UTF-8       # 按 UTF-8 读取 SQL 脚本，否则 Windows 默认 GBK 会让 data.sql 里的中文乱码
+
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl   # 打印 SQL，方便对照
+  global-config:
+    db-config:
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0

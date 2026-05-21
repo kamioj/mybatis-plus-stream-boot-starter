@@ -32,5 +32,17 @@ target/
 # flatten-maven-plugin build artifact
 **/.flattened-pom.xml
 
-# Internal design documents
+# Internal design documents (SDD proposals, not for publication)
 spec/
+
+# Local-only config (may contain real credentials)
+**/application-local.yml
+.env
+.env.local
+.env.*.local
+
+# Environment variables - real credentials, never commit
+# (.env.example is the tracked template)
+.env
+.env.*
+!.env.example
