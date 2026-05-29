@@ -27,6 +27,6 @@ jobs:
           cache: maven
 
       - name: Verify
-        # 仅验证 starter（发布物）。test 模块是本地集成范本，依赖本地 DM jar 的绝对路径(D:/...)与本地数据库，
-        # 在 CI/Linux 无法构建/运行（连 POM 都读不了）；故 CI 只构建并测试 starter。
-        run: mvn -B -ntp -pl starter -am verify -Dgpg.skip=true
+        # 以 starter/pom.xml 为根构建（仅发布物）。不能用 -pl starter（仍会读父 reactor 的 test/pom.xml，
+        # 其本地 DM jar 绝对路径 D:/... 在 Linux 连 POM 都读不了）；-f starter/pom.xml 只继承父 pom、不遍历 <modules>。
+        run: mvn -B -ntp -f starter/pom.xml verify -Dgpg.skip=true

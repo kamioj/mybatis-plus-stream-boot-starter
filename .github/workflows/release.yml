@@ -65,9 +65,10 @@ jobs:
           MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
           MAVEN_GPG_PASSPHRASE: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
-        # 仅部署 starter（唯一发布到 Central 的模块）。test 模块依赖本地 DM jar 的绝对路径(D:/...)，
-        # 在 CI/Linux 上连 POM 都读不了，会让全 reactor 构建失败；它本就 maven.deploy.skip=true 不发布。
-        run: mvn -B -ntp -pl starter -am clean deploy -Dgpg.pinentry-mode=loopback
+        # 直接以 starter/pom.xml 为构建根（只发布它）。不能用 -pl starter：那仍会先读父 reactor 的所有
+        # module（含 test/pom.xml），而 test 依赖本地 DM jar 绝对路径(D:/...)在 Linux 连 POM 都读不了 → 失败。
+        # -f starter/pom.xml 只读父 pom 做继承、不遍历父的 <modules>，彻底绕开 test 模块。
+        run: mvn -B -ntp -f starter/pom.xml clean deploy -Dgpg.pinentry-mode=loopback
 
       - name: Create and push tag
         run: |
