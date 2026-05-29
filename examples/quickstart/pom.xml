@@ -29,7 +29,7 @@
         <dependency>
             <groupId>io.github.kamioj</groupId>
             <artifactId>mybatis-plus-stream-boot-starter</artifactId>
-            <version>4.1.1.2</version>
+            <version>4.1.2.0</version>
         </dependency>
 
         <!-- ② Spring Boot 基础 starter：纯控制台应用，不含 Web 容器，demo 跑完即退出 -->

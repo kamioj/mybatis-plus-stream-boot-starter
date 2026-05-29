@@ -65,7 +65,9 @@ jobs:
           MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
           MAVEN_GPG_PASSPHRASE: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
-        run: mvn -B -ntp clean deploy -Dgpg.pinentry-mode=loopback
+        # 仅部署 starter（唯一发布到 Central 的模块）。test 模块依赖本地 DM jar 的绝对路径(D:/...)，
+        # 在 CI/Linux 上连 POM 都读不了，会让全 reactor 构建失败；它本就 maven.deploy.skip=true 不发布。
+        run: mvn -B -ntp -pl starter -am clean deploy -Dgpg.pinentry-mode=loopback
 
       - name: Create and push tag
         run: |

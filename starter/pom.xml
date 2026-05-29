@@ -7,7 +7,7 @@
     <parent>
         <groupId>io.github.kamioj</groupId>
         <artifactId>mybatis-plus-stream-parent</artifactId>
-        <version>4.1.1.2</version>
+        <version>4.1.2.0</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
@@ -38,7 +38,7 @@
         <url>https://github.com/kamioj/mybatis-plus-stream-boot-starter</url>
         <connection>scm:git:git://github.com/kamioj/mybatis-plus-stream-boot-starter.git</connection>
         <developerConnection>scm:git:ssh://github.com/kamioj/mybatis-plus-stream-boot-starter.git</developerConnection>
-        <tag>v4.1.1.2</tag>
+        <tag>v4.1.2.0</tag>
     </scm>
 
     <dependencies>

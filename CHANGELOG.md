@@ -13,6 +13,25 @@
 
 （暂无）
 
+## [4.1.2.0] - 2026-05-29
+
+### Added
+- 方言 SPI 新增 `SqlDialect.dateAdd`：日期加减按方言生成（MySQL `DATE_ADD(... INTERVAL ...)` / 达梦 `DATEADD(unit, n, date)`）
+- `ExQueryWrapper.hasGroupBy()`、`MybatisStream.getQueryWrapper()` 只读内省方法
+- 结果集映射支持 `TINYINT`→`Boolean` 归一（`MybatisUtil.valueTypeOf` / `coerceValue`），兼容达梦 JDBC 将布尔列返回为 `Byte`
+
+### Fixed
+- **安全**：分页排序列名、存储过程名、字符集、`INTERVAL` 单位均加白名单校验，防 SQL 注入
+- **安全**：批量删除/更新空条件由 `assert`（生产 JVM 默认不生效）改为 `if + throw`，防全表误操作
+- **正确性**：`quarter()` 误委托 `yearFunc` 修正；聚合函数检测正则修正（旧 `(?!)` 恒不匹配）；批量写入含 `null` 元素时末批漏提交修复
+- **正确性**：`MapKey5.hashCode` 补 `key5`；stream 复用 `renameClass` 改 copy-on-write；分组聚合移除多余 `DISTINCT`（避免误合并不同组 + 达梦兼容）
+- **正确性**：`IPage`/`PageVo` 排序列名匹配修复（旧逻辑恒不命中导致排序被静默丢弃）；`TypeReference` 解析改用公开 `getRawType()`
+- **达梦方言**：日期函数走方言、`GROUP_CONCAT`/`LISTAGG` 分隔符正确转义、`MERGE INTO` 写入用裸表名
+
+### Changed
+- 反射元数据按 `ClassValue` 缓存、结果集转换器单例化（性能）
+- 新增 MySQL + 达梦双方言集成测试 350+ 用例（本地数据库范本，`test` 模块不参与发布构建）
+
 ## [4.1.1.2] - 2026-05-19
 
 ### Fixed
