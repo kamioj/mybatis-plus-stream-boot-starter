@@ -53,7 +53,20 @@ public abstract class MybatisQueryableStream<T, R, Children extends MybatisQuery
         super(queryWrapper == null ? new ExQueryWrapper<T>() {{
             setFromTable(MybatisUtil.getTableInfo(entityClass), null);
         }} : queryWrapper, entityClass, baseMapper);
-        this.renameClass = Arrays.stream(renameType).map(item -> ReflectUtils.invokeMethod(item, "getSuperclassTypeParameter")).toArray(Type[]::new);
+        // 用 MyBatis TypeReference 的公开零参 getRawType()。注意 getSuperclassTypeParameter(Class) 是带参的包私方法，
+        // 经无参反射 invokeMethod 调用必抛 NoSuchMethodException 而静默返回 null（会把 null 存进 renameClass 致后续 NPE）。
+        this.renameClass = Arrays.stream(renameType).map(TypeReference::getRawType).toArray(Type[]::new);
+    }
+
+    /**
+     * 基于当前 renameClass 复制一份并替换最后一个元素，返回新数组。
+     * map* 系列必须用本方法而非原地改 {@code this.renameClass[len-1]}——
+     * 后者会让旧 stream 实例与新实例共享同一数组，旧实例被复用时类型映射被污染。
+     */
+    protected Type[] copyRenameWithLast(Type last) {
+        Type[] copy = Arrays.copyOf(this.renameClass, this.renameClass.length);
+        copy[copy.length - 1] = last;
+        return copy;
     }
 
 //    /**
@@ -340,12 +353,14 @@ public abstract class MybatisQueryableStream<T, R, Children extends MybatisQuery
      * <p>SQL: {@code SELECT col FROM ... WHERE ...}（应用层 LinkedHashSet 去重）
      */
     public <K> java.util.Set<K> toSet(SFunction<T, K> col) {
+        Class<?> colType = MybatisUtil.valueTypeOf(col);
         java.util.List<Map<String, Object>> rows = executeSelectOneColumn(col);
         java.util.LinkedHashSet<K> result = new java.util.LinkedHashSet<>();
         for (Map<String, Object> row : rows) {
             // 4.1.1: 通过 alias 取值（Map iterator 顺序在 PG 等 JDBC 上不可靠）
+            // 4.x: 按列声明类型归一驱动返回值（达梦 TINYINT→Byte 转回 Boolean）
             @SuppressWarnings("unchecked")
-            K v = (K) valueOfAlias(row, "mps_k", "mpsK", "K");
+            K v = (K) MybatisUtil.coerceValue(valueOfAlias(row, "mps_k", "mpsK", "K"), colType);
             if (v != null) result.add(v);
         }
         return result;
@@ -366,13 +381,16 @@ public abstract class MybatisQueryableStream<T, R, Children extends MybatisQuery
      */
     public <K, V> Map<K, V> toMap(SFunction<T, K> keyCol, SFunction<T, V> valCol,
                                   java.util.function.BinaryOperator<V> merger) {
+        Class<?> keyType = MybatisUtil.valueTypeOf(keyCol);
+        Class<?> valType = MybatisUtil.valueTypeOf(valCol);
         java.util.List<Map<String, Object>> rows = executeSelectTwoColumns(keyCol, valCol);
         java.util.LinkedHashMap<K, V> result = new java.util.LinkedHashMap<>();
         for (Map<String, Object> row : rows) {
+            // 4.x: 按列声明类型归一驱动返回值（达梦 TINYINT→Byte 转回 Boolean）
             @SuppressWarnings("unchecked")
-            K k = (K) valueOfAlias(row, "mps_k", "mpsK", "K");
+            K k = (K) MybatisUtil.coerceValue(valueOfAlias(row, "mps_k", "mpsK", "K"), keyType);
             @SuppressWarnings("unchecked")
-            V v = (V) valueOfAlias(row, "mps_v", "mpsV", "V");
+            V v = (V) MybatisUtil.coerceValue(valueOfAlias(row, "mps_v", "mpsV", "V"), valType);
             if (k != null) result.merge(k, v, merger);
         }
         return result;
@@ -380,7 +398,10 @@ public abstract class MybatisQueryableStream<T, R, Children extends MybatisQuery
 
     /**
      * 按 keyCol 分组（应用层），<b>保留所有列</b>。SQL 不下推 GROUP BY。
-     * <p>如只需 key + count，用 {@link #toMapCount} 真正下推到 SQL（性能更好）。
+     *
+     * <p><b>性能/内存警告</b>：本方法会把所有匹配行全量加载进内存再分组，<b>不限制行数</b>。
+     * 大数据量下可能 OOM。仅适用于小结果集；如只需 key + 聚合，请用 {@link #toMapCount} /
+     * {@link #toMapSum} 等真正下推到 SQL 的方法（性能更好且不占内存）。
      */
     public <K> Map<K, java.util.List<T>> groupingBy(SFunction<T, K> keyCol) {
         // 不改 SELECT，让 wrapper 保留完整投影；让基类的 toStream 走原有 entity mapping
@@ -474,16 +495,21 @@ public abstract class MybatisQueryableStream<T, R, Children extends MybatisQuery
     /** GROUP BY 聚合：SELECT keyCol, aggExpr FROM ... GROUP BY keyCol */
     private <K, V> Map<K, V> executeGroupBy(SFunction<T, K> keyCol, String aggExpr,
                                             Class<?> rawType, java.util.function.Function<Object, V> caster) {
+        Class<?> keyType = MybatisUtil.valueTypeOf(keyCol);
         String k = MybatisUtil.columnOf(keyCol);
         queryWrapper.select(k + " AS mps_k, " + aggExpr + " AS mps_v");
         queryWrapper.groupBy(k);
         java.util.List<Map<String, Object>> rows = baseMapper.list(queryWrapper);
         queryWrapper.reset();
+        // M10: reset() 只重置 paramNameSeq，不清 GROUP BY。清掉本次添加的 groupBy，
+        // 避免同一 stream 实例被复用做第二次终端聚合时 GROUP BY 叠加（select 为覆盖语义不累加）。
+        queryWrapper.getExpression().getGroupBy().clear();
         java.util.LinkedHashMap<K, V> result = new java.util.LinkedHashMap<>();
         for (Map<String, Object> row : rows) {
             // 4.1.1: 显式按 alias 取值，避免 Map iterator 顺序不可靠导致 key/value 错位
+            // 4.x: 按 key 列声明类型归一驱动返回值（达梦 TINYINT→Byte 转回 Boolean）
             @SuppressWarnings("unchecked")
-            K key = (K) valueOfAlias(row, "mps_k", "mpsK", "K");
+            K key = (K) MybatisUtil.coerceValue(valueOfAlias(row, "mps_k", "mpsK", "K"), keyType);
             Object raw = valueOfAlias(row, "mps_v", "mpsV", "V");
             if (raw == null) continue;
             if (!rawType.isInstance(raw)) {

@@ -44,7 +44,7 @@ public class LambdaOrderItem<T> extends OrderItem {
             } catch (ReflectiveOperationException ignored) {
             }
             return null;
-        }).collect(Collectors.toList());
+        }).filter(item -> item != null).collect(Collectors.toList());
     }
 
     @SafeVarargs
@@ -55,7 +55,7 @@ public class LambdaOrderItem<T> extends OrderItem {
             } catch (ReflectiveOperationException ignored) {
             }
             return null;
-        }).collect(Collectors.toList());
+        }).filter(item -> item != null).collect(Collectors.toList());
     }
 
     private static <T, V> LambdaOrderItem<T> build(SFunction<T, V> column, boolean asc) throws ReflectiveOperationException {

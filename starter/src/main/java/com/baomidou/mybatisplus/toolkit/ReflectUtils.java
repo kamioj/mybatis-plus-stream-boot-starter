@@ -107,6 +107,25 @@ public class ReflectUtils {
         }
     };
 
+    /** 属性元数据缓存：getDeclaredProperties 是类型的纯函数、结果不可变且只读，按 Type 缓存避免每次结果集映射重复反射。 */
+    private static final java.util.concurrent.ConcurrentHashMap<Type, Property[]> DECLARED_PROPERTIES_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** getPropertyValue 专用：按类缓存 PUBLIC getter 方法数组（只读迭代 + setAccessible 幂等，缓存安全）。 */
+    private static final ClassValue<Method[]> PUBLIC_GETTERS_CACHE = new ClassValue<>() {
+        @Override
+        protected Method[] computeValue(Class<?> type) {
+            return getDeclaredMethods(type, Modifier.PUBLIC);
+        }
+    };
+
+    /** getPropertyValue 专用：按类缓存全部字段数组。 */
+    private static final ClassValue<Field[]> ALL_FIELDS_CACHE = new ClassValue<>() {
+        @Override
+        protected Field[] computeValue(Class<?> type) {
+            return getDeclaredFields(type, Modifier.PUBLIC | Modifier.PROTECTED | Modifier.PRIVATE);
+        }
+    };
+
     public static SerializedLambda getLambda(Serializable func) {
         Method m = WRITE_REPLACE_CACHE.get(func.getClass());
         if (m == null) return null;
@@ -149,14 +168,14 @@ public class ReflectUtils {
     @SuppressWarnings("unchecked")
     public static <R> R getPropertyValue(Object obj, String propertyName) throws
             IllegalAccessException, InvocationTargetException, NoSuchFieldException {
-        Method[] methods = getDeclaredMethods(obj.getClass(), Modifier.PUBLIC);
+        Method[] methods = PUBLIC_GETTERS_CACHE.get(obj.getClass());
         for (Method method : methods) {
             if (method.getParameterCount() == 0 && !method.getReturnType().getName().equals("void") && (method.getName().startsWith("get") || method.getName().startsWith("is")) && getMethodPropertyName(method.getName()).equals(propertyName)) {
                 method.setAccessible(true);
                 return (R) method.invoke(obj);
             }
         }
-        Field[] fields = getDeclaredFields(obj.getClass(), Modifier.PUBLIC | Modifier.PROTECTED | Modifier.PRIVATE);
+        Field[] fields = ALL_FIELDS_CACHE.get(obj.getClass());
         for (Field field : fields) {
             if (field.getName().equals(propertyName)) {
                 field.setAccessible(true);
@@ -364,6 +383,21 @@ public class ReflectUtils {
      * @return 属性名称集合
      */
     public static Property[] getDeclaredProperties(Type type) {
+        if (type == null) {
+            return null;
+        }
+        Property[] cached = DECLARED_PROPERTIES_CACHE.get(type);
+        if (cached != null) {
+            return cached;
+        }
+        Property[] computed = computeDeclaredProperties(type);
+        if (computed != null) {
+            DECLARED_PROPERTIES_CACHE.put(type, computed);
+        }
+        return computed;
+    }
+
+    private static Property[] computeDeclaredProperties(Type type) {
         // 获取真实类型信息
         Class<?> clazz;
         Map<String, Type> genericTypeMap = new HashMap<>();

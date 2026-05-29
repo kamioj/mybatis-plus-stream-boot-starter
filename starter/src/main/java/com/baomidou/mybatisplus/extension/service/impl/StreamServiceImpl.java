@@ -340,7 +340,14 @@ public abstract class StreamServiceImpl<M extends StreamBaseMapper<T>, T> extend
             stream.limit(limit);
         }
 
-        return stream.distinct().mapToValue(selectFunc).collect(Collectors.toList());
+        // 分组聚合下 GROUP BY 已保证每组一行，额外 DISTINCT 不仅多余，还会触发达梦
+        // 「SELECT DISTINCT 时 ORDER BY 列须出现在查询项中」的限制（甚至可能误合并 sum 相等的不同组）；
+        // 仅真正无 GROUP BY（listValues / listJoinValues，或 group 回调只设 HAVING 未设 groupBy）时才需 DISTINCT 去重。
+        // L-02：以 hasGroupBy() 判断「实际是否生成 GROUP BY」，比 group==null 更精确。
+        if (!stream.getQueryWrapper().hasGroupBy()) {
+            stream.distinct();
+        }
+        return stream.mapToValue(selectFunc).collect(Collectors.toList());
     }
 
     @Override
@@ -407,6 +414,9 @@ public abstract class StreamServiceImpl<M extends StreamBaseMapper<T>, T> extend
 
     @Override
     public int remove(Consumer<NormalWhereLambdaQueryWrapper> predicate) {
+        if (predicate == null) {
+            throw new IllegalArgumentException("删除条件不可为空，禁止全表删除");
+        }
         return executableStream().filter(predicate).executeDelete();
     }
 
@@ -417,7 +427,14 @@ public abstract class StreamServiceImpl<M extends StreamBaseMapper<T>, T> extend
 
     @Override
     public int updateJoin(Consumer<JoinLambdaQueryWrapper<T>> joinPredicate, Consumer<NormalSetLambdaQueryWrapper> setter, Consumer<NormalWhereLambdaQueryWrapper> predicate) {
-        assert predicate != null : "更新条件不可为空";
+        // assert 在生产 JVM 默认不生效，改 if + throw 确保更新条件非空（防全表更新）
+        if (predicate == null) {
+            throw new IllegalArgumentException("更新条件不可为空，禁止全表更新");
+        }
+        // 与 predicate 守卫对称：setter 为 null 时 set() 内 setter.accept 会 NPE，提前给可读异常
+        if (setter == null) {
+            throw new IllegalArgumentException("更新内容不可为空");
+        }
         MybatisExecutableStream<T> stream = executableStream();
         stream.filter(predicate);
 
@@ -430,6 +447,11 @@ public abstract class StreamServiceImpl<M extends StreamBaseMapper<T>, T> extend
 
     @SuppressWarnings("unchecked")
     protected <R> List<R> callProcedureForList(String procedureName, Class<R> renameClass, ProcedureParam... procedureParams) {
+        // 安全校验：过程名作为标识符以 ${procedureName} 原样拼入 {CALL ...}，无法参数化，
+        // 必须在入口做白名单（仅允许字母/下划线开头、字母数字下划线点构成），杜绝 SQL 注入。
+        if (procedureName == null || !procedureName.matches("^[A-Za-z_][A-Za-z0-9_.]*$")) {
+            throw new IllegalArgumentException("非法存储过程名: " + procedureName);
+        }
         List<ProcedureParamDef> definitions = new ArrayList<>();
         Map<String, Object> param = new HashMap<>();
         for (ProcedureParam procedureParam : procedureParams) {

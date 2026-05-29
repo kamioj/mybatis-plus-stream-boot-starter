@@ -313,9 +313,12 @@ public abstract class AbstractFunctionLambdaQueryWrapper<W extends AbstractWhere
     }
 
     /**
-     * 自定义字段
+     * 自定义字段（原始 SQL 片段，<b>不做参数化</b>）。
      *
-     * @param columnName 自定义字段名
+     * <p><b>安全警告</b>：columnName 会原样拼入最终 SQL，<b>严禁传入用户可控字符串</b>，否则构成 SQL 注入。
+     * 仅可用于代码内固定的列名/表达式；动态列请改用 {@code column(SFunction)} 等类型安全形式。
+     *
+     * @param columnName 自定义字段名（必须是可信的固定值）
      * @param <V>        值类型
      * @return 值类型
      */
@@ -587,6 +590,10 @@ public abstract class AbstractFunctionLambdaQueryWrapper<W extends AbstractWhere
      */
     @SuppressWarnings("unchecked")
     public String convertCharacterSetFunc(Function<Children, String> func, String characterSet) {
+        // 安全校验：字符集名以字符串拼入 CONVERT(... USING xxx)，无法参数化，仅允许字母/数字/下划线
+        if (characterSet == null || !characterSet.matches("^[A-Za-z0-9_]+$")) {
+            throw new IllegalArgumentException("非法字符集名: " + characterSet);
+        }
         // Phase 3: 字符集转换路由到方言；非 MySQL 方言默认抛 UnsupportedOperationException
         try {
             String expr = getSubSqlSegment(func, (Class<Children>) getClass());
@@ -1924,7 +1931,7 @@ public abstract class AbstractFunctionLambdaQueryWrapper<W extends AbstractWhere
      * @return java.util.Date
      */
     public <T> Long quarter(SFunction<T, Date> column) {
-        return yearFunc(x -> x.column(column));
+        return quarterFunc(x -> x.column(column));
     }
 
     @SuppressWarnings("unchecked")
@@ -2046,8 +2053,16 @@ public abstract class AbstractFunctionLambdaQueryWrapper<W extends AbstractWhere
      */
     @SuppressWarnings("unchecked")
     public Date dateAddFunc(Function<Children, Date> func, Function<Children, Number> exprFunc, String type) {
+        // 安全校验：INTERVAL 单位以字符串原样拼入 SQL，无法参数化；合法单位仅由字母/下划线构成，
+        // 仅允许该字符集即可挡住空格/括号/逗号等注入字符（不破坏任何合法单位）。
+        if (type == null || !type.matches("^[A-Za-z_]+$")) {
+            throw new IllegalArgumentException("非法 INTERVAL 类型: " + type);
+        }
         try {
-            sqlSegment = "DATE_ADD(" + getSubSqlSegment(func, (Class<Children>) getClass()) + ", INTERVAL " + getSubSqlSegment(exprFunc, (Class<Children>) getClass()) + " " + type + ")";
+            String dateExpr = getSubSqlSegment(func, (Class<Children>) getClass());
+            String amountExpr = getSubSqlSegment(exprFunc, (Class<Children>) getClass());
+            // 4.x: 日期加减走方言（MySQL→DATE_ADD INTERVAL，达梦→DATEADD），不再硬编 MySQL 语法
+            sqlSegment = DialectRegistry.current().dateAdd(dateExpr, amountExpr, type);
         } catch (ReflectiveOperationException ignored) {
         }
         return null;

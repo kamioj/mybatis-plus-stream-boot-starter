@@ -69,6 +69,12 @@ public class DamengDialect extends AbstractSqlDialect {
     }
 
     @Override
+    public String dateAdd(String dateExpr, String amountExpr, String unit) {
+        // 达梦用 Oracle 风格 DATEADD(datepart, number, date)，不支持 MySQL 的 INTERVAL 语法
+        return "DATEADD(" + unit + ", " + amountExpr + ", " + dateExpr + ")";
+    }
+
+    @Override
     public String cast(String expr, SqlDataType type) {
         return "CAST(" + expr + " AS " + dataTypeName(type) + ")";
     }
@@ -146,7 +152,10 @@ public class DamengDialect extends AbstractSqlDialect {
             throw new IllegalStateException("DM " + mode + " 需要实体声明 @TableId 主键（MERGE INTO ON 子句必需）");
         }
         String pkColQuoted = quoteIdentifier(pk.getColumnName());
-        String tableExpr = wrapper.getSqlFrom();
+        // MERGE INTO 的 target 只能是单表名：必须用裸表名（方言引号包裹），不能用 getSqlFrom()——
+        // 后者含 JOIN 子句 / AS 别名，会让 MERGE INTO 及 ON 子句的表限定符语法非法。
+        // 简单批量写入（无 JOIN）下本表达式与 getSqlFrom() 输出一致，故不影响既有路径。
+        String tableExpr = quoteIdentifier(wrapper.getFromTableInfo().getTableName());
         List<SetterClause> setters = wrapper.getSetters();
 
         StringBuilder sb = new StringBuilder();

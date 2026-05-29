@@ -57,6 +57,6 @@ public class MapKey5<T1, T2, T3, T4, T5> implements Serializable {
 
     @Override
     public int hashCode() {
-        return Objects.hash(key1, key2, key3, key4);
+        return Objects.hash(key1, key2, key3, key4, key5);
     }
 }

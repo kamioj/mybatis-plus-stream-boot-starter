@@ -2402,7 +2402,15 @@ public abstract class AbstractWhereLambdaQueryWrapper<F extends AbstractFunction
      */
     public <T, V> Children containAny(boolean condition, SFunction<T, String> column, String rename, Collection<V> coll) {
         if (condition) {
-            String regexp = coll.stream().filter(Objects::nonNull).map(Object::toString).collect(Collectors.joining(",|")) + ",";
+            String joined = coll == null ? "" : coll.stream().filter(Objects::nonNull).map(Object::toString).collect(Collectors.joining(",|"));
+            if (joined.isEmpty()) {
+                // 空集合 / 全 null：「包含任意值」语义上应匹配 0 行。
+                // 不能让 regexp 退化为 "," —— 那会用 REGEXP 命中所有含逗号的行。短路为恒假。
+                // L-06: 使用带 condition 的重载，与代码库风格一致（逻辑等价，condition=true 始终追加）
+                getQueryWrapper().apply(true, "{0} = {1}", 1, 0);
+                return typedThis;
+            }
+            String regexp = joined + ",";
             this.regexpFunc(y -> y.concatFunc(z -> z.column(column, rename), z -> z.value(",")), y -> y.value(regexp));
         }
         return typedThis;
@@ -2458,8 +2466,11 @@ public abstract class AbstractWhereLambdaQueryWrapper<F extends AbstractFunction
      * .filter(w -> w.exists("SELECT 1 FROM orders o WHERE o.user_id = u.id"))
      * }</pre>
      *
+     * <p><b>安全警告</b>：subSql 原样拼入 SQL，<b>不做参数化</b>。<b>严禁</b>将用户可控字符串拼进 subSql，
+     * 否则构成 SQL 注入。需要类型安全的子查询请使用 {@code exists(Consumer<...SubSqlLambdaQueryWrapper>)} 重载。
+     *
      * @param condition 仅 true 时拼接
-     * @param subSql    子查询 SQL 文本
+     * @param subSql    子查询 SQL 文本（必须是可信内容）
      * @return 实例本身
      */
     public Children exists(boolean condition, String subSql) {
@@ -2476,6 +2487,8 @@ public abstract class AbstractWhereLambdaQueryWrapper<F extends AbstractFunction
 
     /**
      * {@code NOT EXISTS (subSql)}。
+     *
+     * <p><b>安全警告</b>：同 {@link #exists(boolean, String)}——subSql 不做参数化，严禁传入用户可控字符串。
      */
     public Children notExists(boolean condition, String subSql) {
         if (condition) {

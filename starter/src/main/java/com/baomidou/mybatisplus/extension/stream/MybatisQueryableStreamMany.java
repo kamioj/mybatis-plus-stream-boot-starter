@@ -1,8 +1,10 @@
 package com.baomidou.mybatisplus.extension.stream;
 
-import cn.hutool.core.lang.TypeReference;
+import org.apache.ibatis.type.TypeReference;
 import com.baomidou.mybatisplus.core.toolkit.support.SFunction;
 import com.baomidou.mybatisplus.extension.mapper.StreamBaseMapper;
+import com.baomidou.mybatisplus.toolkit.MybatisUtil;
+import com.baomidou.mybatisplus.toolkit.ReflectUtils;
 
 import java.lang.reflect.Type;
 import java.util.Arrays;
@@ -61,8 +63,7 @@ public class MybatisQueryableStreamMany<T> extends MybatisQueryableStream<T, Obj
         if (select != null) {
             select.accept(selectLambda);
         }
-        this.renameClass[this.renameClass.length - 1] = renameClass;
-        return new MybatisQueryableStreamMany<>(queryWrapper, entityClass, baseMapper, this.seqNo, this.renameClass);
+        return new MybatisQueryableStreamMany<>(queryWrapper, entityClass, baseMapper, this.seqNo, copyRenameWithLast(renameClass));
     }
 
     public <R> MybatisQueryableStreamMany<T> map(Consumer<SelectLambdaQueryWrapper<R>> select, TypeReference<R> renameTypeReference) {
@@ -70,15 +71,13 @@ public class MybatisQueryableStreamMany<T> extends MybatisQueryableStream<T, Obj
         if (select != null) {
             select.accept(selectLambda);
         }
-        this.renameClass[this.renameClass.length - 1] = renameTypeReference.getType();
-        return new MybatisQueryableStreamMany<>(queryWrapper, entityClass, baseMapper, this.seqNo, this.renameClass);
+        return new MybatisQueryableStreamMany<>(queryWrapper, entityClass, baseMapper, this.seqNo, copyRenameWithLast(renameTypeReference.getRawType()));
     }
 
     public <V> MybatisQueryableStreamMany<T> mapToValue(Function<GroupFunctionLambdaQueryWrapper, V> selectFunc) {
         SelectLambdaQueryWrapper<SingleValue<V>> selectLambda = new SelectLambdaQueryWrapper<>(queryWrapper, this.seqNo.toString());
         selectLambda.selectFunc(selectFunc, SingleValue::getValue);
-        this.renameClass[this.renameClass.length - 1] = Object.class;
-        return new MybatisQueryableStreamMany<>(queryWrapper, entityClass, baseMapper, this.seqNo, this.renameClass);
+        return new MybatisQueryableStreamMany<>(queryWrapper, entityClass, baseMapper, this.seqNo, copyRenameWithLast(Object.class));
     }
 
     /**
@@ -91,6 +90,10 @@ public class MybatisQueryableStreamMany<T> extends MybatisQueryableStream<T, Obj
     }
 
     public <R, V> MybatisQueryableStreamMany<T> mapToColumn(SFunction<R, V> selectColumn, String rename) {
-        return mapToValue(x -> x.column(selectColumn, rename));
+        SelectLambdaQueryWrapper<SingleValue<V>> selectLambda = new SelectLambdaQueryWrapper<>(queryWrapper, this.seqNo.toString());
+        selectLambda.selectFunc(x -> x.column(selectColumn, rename), SingleValue::getValue);
+        // 用列的声明 Java 类型作结果映射目标，使方言差异（如达梦 TINYINT→Byte）能在 mapStream 转回 Boolean
+        return new MybatisQueryableStreamMany<>(queryWrapper, entityClass, baseMapper, this.seqNo,
+            copyRenameWithLast(MybatisUtil.valueTypeOf(selectColumn)));
     }
 }

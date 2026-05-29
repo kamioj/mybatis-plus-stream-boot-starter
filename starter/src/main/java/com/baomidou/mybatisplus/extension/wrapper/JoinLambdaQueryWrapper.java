@@ -403,7 +403,10 @@ public final class JoinLambdaQueryWrapper<T> extends LambdaQueryWrapper<JoinLamb
 
             getQueryWrapper().setRename(getTableName(joinClass), joinRename);
             if (!StringUtils.isEmpty(joinRename)) {
-                sb.append(" AS ").append(getQueryWrapper().getRename(getTableName(joinClass), joinRename));
+                // 别名用 BACKTICK token 包裹（与子查询 JOIN 路径一致），交由 translate() 按方言转义，防别名注入
+                sb.append(" AS ").append(StringPool.BACKTICK)
+                    .append(getQueryWrapper().getRename(getTableName(joinClass), joinRename))
+                    .append(StringPool.BACKTICK);
             }
             sb.append(" ON ");
             NormalWhereLambdaQueryWrapper whereLambda = new NormalWhereLambdaQueryWrapper();

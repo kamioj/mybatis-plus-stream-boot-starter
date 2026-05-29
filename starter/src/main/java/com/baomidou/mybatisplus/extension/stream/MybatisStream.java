@@ -33,6 +33,14 @@ public abstract class MybatisStream<T, R, Wrapper extends ExQueryWrapper<T>, Chi
     }
 
     /**
+     * 暴露内部查询器（只读内省用途）。例如服务层据 {@link ExQueryWrapper#hasGroupBy()} 判断是否真有
+     * GROUP BY，从而决定 listGroupValues 是否需要 DISTINCT（L-02）。
+     */
+    public Wrapper getQueryWrapper() {
+        return this.queryWrapper;
+    }
+
+    /**
      * 表
      *
      * @param join 连表表达式

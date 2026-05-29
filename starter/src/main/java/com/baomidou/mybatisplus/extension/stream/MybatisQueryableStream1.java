@@ -2,7 +2,7 @@ package com.baomidou.mybatisplus.extension.stream;
 
 import com.baomidou.mybatisplus.core.toolkit.support.SFunction;
 import com.baomidou.mybatisplus.extension.mapper.StreamBaseMapper;
-import com.baomidou.mybatisplus.toolkit.ReflectUtils;
+import com.baomidou.mybatisplus.toolkit.MybatisUtil;
 import org.apache.ibatis.type.TypeReference;
 
 import java.lang.reflect.Type;
@@ -65,7 +65,7 @@ public class MybatisQueryableStream1<T, R> extends MybatisQueryableStream<T, R, 
         if (select != null) {
             select.accept(selectLambda);
         }
-        return new MybatisQueryableStream1<>(queryWrapper, entityClass, baseMapper,((Type) ReflectUtils.invokeMethod(renameTypeReference, "getSuperclassTypeParameter")));
+        return new MybatisQueryableStream1<>(queryWrapper, entityClass, baseMapper, renameTypeReference.getRawType());
     }
 
     public <V> MybatisQueryableStream1<T, V> mapToValue(Function<GroupFunctionLambdaQueryWrapper, V> selectFunc) {
@@ -84,6 +84,10 @@ public class MybatisQueryableStream1<T, R> extends MybatisQueryableStream<T, R, 
     }
 
     public <R2, V> MybatisQueryableStream1<T, V> mapToColumn(SFunction<R2, V> selectColumn, String tableRename) {
-        return mapToValue(x -> x.column(selectColumn, tableRename));
+        // 与 Stream2..5 一致：用列声明类型作映射目标，让方言差异（达梦 TINYINT→Byte）能在 mapStream 转回 Boolean。
+        // 不能委托 mapToValue（其 renameClass=Object.class 会走快捷分支跳过 coerceValue）。
+        SelectLambdaQueryWrapper<SingleValue<V>> selectLambda = new SelectLambdaQueryWrapper<>(queryWrapper, "1");
+        selectLambda.selectFunc(x -> x.column(selectColumn, tableRename), SingleValue::getValue);
+        return new MybatisQueryableStream1<>(queryWrapper, entityClass, baseMapper, MybatisUtil.valueTypeOf(selectColumn));
     }
 }

@@ -16,6 +16,10 @@ import com.baomidou.mybatisplus.extension.metadata.TableInfo;
 import java.util.*;
 
 public class ExQueryWrapper<T> extends QueryWrapper<T> {
+    /** 聚合函数检测：大小写不敏感，匹配 avg/sum/max/min/count 后跟可选空白与左括号。 */
+    private static final java.util.regex.Pattern AGGREGATE_FUNC_PATTERN =
+        java.util.regex.Pattern.compile("(?i)(avg|sum|max|min|count)\\s*\\(");
+
     private boolean addLogicDeleted = false;
 
     private final Map<String, List<String>> tableRenameMap = new LinkedHashMap<>();
@@ -110,8 +114,7 @@ public class ExQueryWrapper<T> extends QueryWrapper<T> {
     public ExQueryWrapper<T> toCountQueryWrapper(String rename) {
         this.getSqlSegment();
         this.reset();
-        boolean containAggregate = Arrays.stream(this.getSqlSelect().split(",")).anyMatch(x -> x.trim().matches("(?!)(avg\\()|(sum\\()|(max\\()|(min\\()|(count\\().*"));
-        //StringUtils.regexFind("(?i)(avg\\()|(sum\\()|(max\\()|(min\\()|(count\\()", this.getSqlSelect());
+        boolean containAggregate = Arrays.stream(this.getSqlSelect().split(",")).anyMatch(x -> AGGREGATE_FUNC_PATTERN.matcher(x.trim()).find());
         boolean containDistinct = this.isDistinct();
         boolean containGroupBy = this.getExpression().getGroupBy().size() > 0;
         boolean containHaving = this.getExpression().getHaving().size() > 0;
@@ -241,8 +244,13 @@ public class ExQueryWrapper<T> extends QueryWrapper<T> {
         }
         if (!CollectionUtils.isEmpty(orders)) {
             for (OrderItem orderItem : orders) {
-                String columnName = keySet.stream().filter(x -> x.endsWith("/" + orderItem.getColumn() + StringPool.BACKTICK)).findFirst().orElse(null);
-                pageQueryWrapper.orderBy(true, orderItem.isAsc(), columnName == null ? orderItem.getColumn() : columnName);
+                // orderItem.getColumn() 此处已被 page() 预处理成 `propName/seq` 别名形态（propName 经 buildPage 白名单校验）。
+                // 精确匹配 keySet（实际投影出的别名集合，CASE_INSENSITIVE）：命中则按该别名排序；未命中（非投影列/未解析）跳过，
+                // 绝不把原始串拼进 ORDER BY（防注入）。旧实现用 endsWith("/"+col+BACKTICK)，因 col 已是 `propName/seq` 而恒不命中，
+                // 导致 IPage/PageVo 排序被静默丢弃（L-05）。
+                if (keySet.contains(orderItem.getColumn())) {
+                    pageQueryWrapper.orderBy(true, orderItem.isAsc(), orderItem.getColumn());
+                }
             }
         }
         // 设置分页大小
@@ -449,6 +457,17 @@ public class ExQueryWrapper<T> extends QueryWrapper<T> {
             }
             select(selectArray);
         }
+    }
+
+    /**
+     * L-02: 判断是否真正设置了 GROUP BY 子句。
+     * 用于区分「group 回调只设了 HAVING 而未设 groupBy」与「完全无分组」两种情形，
+     * 避免误判 distinct 逻辑。
+     *
+     * @return 是否有 GROUP BY
+     */
+    public boolean hasGroupBy() {
+        return getExpression().getGroupBy().size() > 0;
     }
 
     public boolean isWithDeleted() {

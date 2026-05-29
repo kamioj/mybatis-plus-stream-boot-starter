@@ -98,6 +98,21 @@ public interface SqlDialect {
             "Dialect " + dbType() + " 不支持字符集转换 CONVERT(... USING ...)");
     }
 
+    /**
+     * 日期加减表达式。各方言语法不同：
+     * <ul>
+     *   <li>MySQL（默认）: {@code DATE_ADD(dateExpr, INTERVAL amountExpr unit)}</li>
+     *   <li>达梦(DM): {@code DATEADD(unit, amountExpr, dateExpr)}（Oracle 风格）</li>
+     * </ul>
+     *
+     * @param dateExpr   日期列/表达式（已渲染的 SQL 片段）
+     * @param amountExpr 增减数量（已渲染的 SQL 片段，可为绑定参数或列）
+     * @param unit       间隔单位（DAY/MONTH/YEAR…，调用方已做 {@code ^[A-Za-z_]+$} 白名单校验）
+     */
+    default String dateAdd(String dateExpr, String amountExpr, String unit) {
+        return "DATE_ADD(" + dateExpr + ", INTERVAL " + amountExpr + " " + unit + ")";
+    }
+
     /* ============== 行锁 ============== */
 
     /**

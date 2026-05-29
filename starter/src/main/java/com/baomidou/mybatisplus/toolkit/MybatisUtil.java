@@ -69,10 +69,19 @@ public final class MybatisUtil {
     public static <T> IPage<T> buildPage(PageVo page, LambdaOrderItem<T>... defaultOrderItems) {
         Page<T> iPage = new Page<>(page.getPageNum(), page.getPageSize());
         if (!CollectionUtils.isEmpty(page.getOrder())) {
-            List<OrderItem> orderItemList = page.getOrder().stream().map(x -> new OrderItem(){{
-                setColumn(x.getKey());
-                setAsc(x.getAsc());
-            }}).collect(Collectors.toList());
+            List<OrderItem> orderItemList = page.getOrder().stream().map(x -> {
+                String key = x.getKey();
+                // 安全校验：排序列名以 ${} 原样进入 ORDER BY，无法参数化；仅允许字母/数字/下划线，
+                // 拒绝空格、引号、括号、逗号、分号等注入字符（前端传入的 SortVo.key 不可信）。
+                if (key == null || !key.matches("^[A-Za-z0-9_]+$")) {
+                    throw new IllegalArgumentException("非法排序列名: " + key);
+                }
+                OrderItem orderItem = new OrderItem();
+                orderItem.setColumn(key);
+                // SortVo.asc 是装箱 Boolean，为 null 时默认升序，避免拆箱 NPE
+                orderItem.setAsc(x.getAsc() == null || x.getAsc());
+                return orderItem;
+            }).collect(Collectors.toList());
             iPage.setOrders(orderItemList);
         }
         iPage.addOrder(defaultOrderItems);
@@ -137,6 +146,88 @@ public final class MybatisUtil {
         }
     }
 
+    /**
+     * 结果集映射用的默认类型转换器集合：Long↔Date、Date→String、String→Date、Number→Boolean。
+     * <p>其中 {@code Number→Boolean}（非零即 true）用于兼容不同 JDBC 驱动对布尔列的返回差异：
+     * MySQL 的 {@code TINYINT(1)} 直接返回 {@code Boolean}，达梦的 {@code TINYINT} 返回 {@code Byte}。
+     * 转换器无状态，缓存为单例数组（{@link Converter} 构造时反射解析泛型，缓存可免去逐行重复开销）。
+     */
+    private static final Converter<?, ?>[] DEFAULT_CONVERTERS = new Converter<?, ?>[]{
+        new Converter<Long, Date>() {
+            @Override
+            public Date convert(Long o) {
+                return new Date(o);
+            }
+        },
+        new Converter<Date, Long>() {
+            @Override
+            public Long convert(Date o) {
+                return o.getTime();
+            }
+        },
+        new Converter<Date, String>() {
+            @Override
+            public String convert(Date o) {
+                return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(o);
+            }
+        },
+        new Converter<String, Date>() {
+            @Override
+            public Date convert(String o) {
+                return DateUtil.parse(o);
+            }
+        },
+        new Converter<Number, Boolean>() {
+            @Override
+            public Boolean convert(Number o) {
+                return o.longValue() != 0;
+            }
+        }
+    };
+
+    /**
+     * 解析 SFunction 对应列的声明 Java 类型（如 {@code User::getActive} → {@code Boolean.class}）。
+     * <p>用于值列（{@code mapToColumn} / {@code toMap} / {@code toSet} 等）结果映射时，把 JDBC 驱动返回的
+     * 原始类型转回实体声明类型——典型场景：达梦 {@code TINYINT} 返回 {@code Byte}，需转回 {@code Boolean}。
+     * 解析失败时返回 {@code Object.class}（退化为原样取值，与历史行为一致）。
+     */
+    public static Class<?> valueTypeOf(com.baomidou.mybatisplus.core.toolkit.support.SFunction<?, ?> col) {
+        try {
+            java.lang.invoke.SerializedLambda lambda = ReflectUtils.getLambda(col);
+            if (lambda == null) {
+                return Object.class;
+            }
+            String property = ReflectUtils.getMethodPropertyName(lambda.getImplMethodName());
+            Class<?> entityClass = Class.forName(lambda.getImplClass().replace('/', '.'));
+            for (ColumnInfo ci : getTableInfo(entityClass).getColumns()) {
+                if (ci.getPropertyName().equalsIgnoreCase(property)) {
+                    return ci.getColumnType();
+                }
+            }
+        } catch (Throwable ignored) {
+            // 解析失败：退化为 Object.class，保持「原样取值」历史行为
+        }
+        return Object.class;
+    }
+
+    /**
+     * 把 JDBC 驱动返回的原始值强制为列声明的 Java 类型。
+     * <p>主要解决方言间布尔列差异：达梦 {@code TINYINT} 返回 {@code Byte}，需按 {@code Number→Boolean}
+     * 语义（非零即 true）转回 {@code Boolean}。已是目标类型时原样返回，对 MySQL 路径零额外开销。
+     *
+     * @param raw          原始值（可能为 null）
+     * @param declaredType 列声明类型；{@code Object.class} / {@code null} 表示未知类型，原样返回
+     */
+    public static Object coerceValue(Object raw, Class<?> declaredType) {
+        if (raw == null || declaredType == null || Object.class.equals(declaredType) || declaredType.isInstance(raw)) {
+            return raw;
+        }
+        if (ReflectUtils.isPrimitive(raw.getClass()) && ReflectUtils.isPrimitive(declaredType)) {
+            return ReflectUtils.convertPrimitive(raw, declaredType, DEFAULT_CONVERTERS);
+        }
+        return raw;
+    }
+
     private static <T> TableInfo<T> buildTableInfo(Class<T> clazz) {
         TableInfo<T> table = new TableInfo<>();
         table.setEntityClass(clazz);
@@ -180,7 +271,12 @@ public final class MybatisUtil {
             try {
                 Object[] objArray = new Object[toType.length];
                 for (int i = 0; i < toType.length; i++) {
-                    objArray[i] = ReflectUtils.newInstance(ReflectUtils.getGenericClass(toType[i]));
+                    // 仅实体类型需要预先 new 实例供后续 setter 赋值；Object/基础类型槽位会被取值分支整体覆盖，
+                    // 无需（也不能）反射实例化——如 BigDecimal 等无公开无参构造的类会触发 InaccessibleObjectException。
+                    Class<?> genericClass = ReflectUtils.getGenericClass(toType[i]);
+                    if (!Object.class.equals(toType[i]) && !ReflectUtils.isPrimitive(genericClass)) {
+                        objArray[i] = ReflectUtils.newInstance(genericClass);
+                    }
                 }
                 List<Map<String, Object>> values = Arrays.stream(toType).map(y -> new HashMap<String, Object>()).collect(Collectors.toList());
                 if (x == null) {
@@ -199,12 +295,20 @@ public final class MybatisUtil {
                 Map<String, Object> valueMap;
                 for (int i = 0; i < toType.length; i++) {
                     valueMap = values.get(i);
-                    if (Object.class.equals(toType[i]) || ReflectUtils.isPrimitive(ReflectUtils.getGenericClass(toType[i]))) {
-                        // 基础类型直接转换
+                    Class<?> targetType = ReflectUtils.getGenericClass(toType[i]);
+                    if (Object.class.equals(toType[i])) {
+                        // 值列/未知目标类型：原样取首个非空值，交调用方处理
                         objArray[i] = valueMap.values().stream().filter(Objects::nonNull).findFirst().orElse(null);
+                    } else if (ReflectUtils.isPrimitive(targetType)) {
+                        // 基础类型：把驱动返回的原始值转回声明类型（如达梦 TINYINT→Byte 需转回 Boolean）
+                        Object raw = valueMap.values().stream().filter(Objects::nonNull).findFirst().orElse(null);
+                        objArray[i] = coerceValue(raw, targetType);
                     } else {
                         // 实体类型
-                        for (ReflectUtils.Property property : propertiesArr.get(i)) {
+                        ReflectUtils.Property[] props = propertiesArr.get(i);
+                        // L-01: getDeclaredProperties 对某些 ParameterizedType 可能返回 null，防止增强 for 触发 NPE
+                        if (props == null) continue;
+                        for (ReflectUtils.Property property : props) {
                             for (Map.Entry<String, Object> entry : valueMap.entrySet()) {
                                 if (!property.getName().equals(entry.getKey()) && !property.getName().replace("_", "").equalsIgnoreCase(entry.getKey().replace("_", ""))) {
                                     continue;
@@ -212,40 +316,8 @@ public final class MybatisUtil {
                                 if (entry.getValue() != null) {
                                     // 赋值
                                     property.setAccessible(true);
-                                    List<Converter<?, ?>> converterList = new ArrayList<>();
-                                    converterList.add(new Converter<Long, Date>() {
-                                        @Override
-                                        public Date convert(Long o) {
-                                            return new Date(o);
-                                        }
-                                    });
-                                    converterList.add(new Converter<Date, Long>() {
-                                                          @Override
-                                                          public Long convert(Date o) {
-                                                              return o.getTime();
-                                                          }
-                                                      }
-                                    );
-                                    converterList.add(new Converter<Date, String>() {
-                                        @Override
-                                        public String convert( Date o) {
-                                            return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(o);
-                                        }
-                                    });
-                                    converterList.add(new Converter<String, Date>() {
-                                        @Override
-                                        public Date convert(String o) {
-                                            return DateUtil.parse(o);
-                                        }
-                                    });
-                                    converterList.add(new Converter<Number, Boolean>() {
-                                        @Override
-                                        public Boolean convert(Number o) {
-                                            return o.longValue() != 0;
-                                        }
-                                    });
                                     if (ReflectUtils.isPrimitive(entry.getValue().getClass())) {
-                                        property.set(objArray[i], ReflectUtils.convertPrimitive(entry.getValue(), ReflectUtils.getGenericClass(property.getRealType()), converterList.toArray(new Converter[0])));
+                                        property.set(objArray[i], ReflectUtils.convertPrimitive(entry.getValue(), ReflectUtils.getGenericClass(property.getRealType()), DEFAULT_CONVERTERS));
                                     } else {
                                         property.set(objArray[i], entry.getValue());
                                     }

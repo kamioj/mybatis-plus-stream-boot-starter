@@ -653,10 +653,11 @@ public final class GroupFunctionLambdaQueryWrapper extends AbstractFunctionLambd
             String inner = getSubSqlSegment(func, NormalFunctionLambdaQueryWrapper.class);
             com.baomidou.mybatisplus.extension.dialect.SqlDialect dialect =
                 com.baomidou.mybatisplus.extension.dialect.DialectRegistry.current();
-            if (dialect.dbType() == com.baomidou.mybatisplus.extension.dialect.DbType.MYSQL && !orderBySql.isEmpty()) {
+            if (dialect.dbType() == com.baomidou.mybatisplus.extension.dialect.DbType.MYSQL && !orderBySql.isBlank()) {
                 // MySQL 保留 ORDER BY + SEPARATOR 完整形态
                 if (!StringUtils.isEmpty(separator)) {
-                    separatorSql = " SEPARATOR '" + separator.replace("'", "\\'") + "'";
+                    // 与 MySqlDialect.escapeStringLiteral 一致：先转义反斜杠再双写单引号，避免 \' 转义绕过
+                    separatorSql = " SEPARATOR '" + separator.replace("\\", "\\\\").replace("'", "''") + "'";
                 }
                 sqlSegment = "GROUP_CONCAT(" + inner + orderBySql + separatorSql + ")";
             } else {
@@ -711,9 +712,10 @@ public final class GroupFunctionLambdaQueryWrapper extends AbstractFunctionLambd
             String inner = "DISTINCT " + getSubSqlSegment(func, NormalFunctionLambdaQueryWrapper.class);
             com.baomidou.mybatisplus.extension.dialect.SqlDialect dialect =
                 com.baomidou.mybatisplus.extension.dialect.DialectRegistry.current();
-            if (dialect.dbType() == com.baomidou.mybatisplus.extension.dialect.DbType.MYSQL && !orderBySql.isEmpty()) {
+            if (dialect.dbType() == com.baomidou.mybatisplus.extension.dialect.DbType.MYSQL && !orderBySql.isBlank()) {
                 if (!StringUtils.isEmpty(separator)) {
-                    separatorSql = " SEPARATOR '" + separator.replace("'", "\\'") + "'";
+                    // 与 MySqlDialect.escapeStringLiteral 一致：先转义反斜杠再双写单引号，避免 \' 转义绕过
+                    separatorSql = " SEPARATOR '" + separator.replace("\\", "\\\\").replace("'", "''") + "'";
                 }
                 sqlSegment = "GROUP_CONCAT(" + inner + orderBySql + separatorSql + ")";
             } else {
